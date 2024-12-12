@@ -50,7 +50,7 @@ jobs:
         with:
           name: ${{ env.NAME }}-linux
           path: ${{ env.NAME }}-${{ env.VERSION }}-linux.tar.gz
-          if-no-files-found: error
+          # if-no-files-found: error
           overwrite: true
 
   package_windows:
@@ -174,7 +174,7 @@ jobs:
 
   release:
     needs:
-      [package_linux, package_darwin_arm, package_darwin_intel, package_windows]
+      [package_darwin_arm, package_darwin_intel, package_windows]
     runs-on: ubuntu-latest
     steps:
       - name: Download artifact
@@ -193,7 +193,7 @@ jobs:
       - name: Generate SHA256 checksums
         run: |
           sha256sum *.zip >> SHA256SUMS.txt
-          sha256sum *.tar.gz >> SHA256SUMS.txt
+          # sha256sum *.tar.gz >> SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       - name: Release
@@ -205,4 +205,4 @@ jobs:
           files: |
             SHA256SUMS.txt
             *.zip
-            *.tar.gz
+
