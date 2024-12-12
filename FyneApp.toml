@@ -1,0 +1,19 @@
+Website = "https://github.com/hantang/smartedu-dl-go"
+
+[Details]
+  Icon = "icon.png"
+  Name = "SmarteduDL"
+  ID = "io.github.hantang.smartedudl"
+  Version = "0.1.0"
+  Build = 3
+
+[Release]
+  BuildName = "SmarteduDL"
+  ContentRating = ""
+  Description = "<p>智慧教育平台中的教材资源下载工具</p>"
+  License = "MIT"
+
+[LinuxAndBSD]
+  GenericName = "Resource downloader"
+  Categories = ["Utility"]
+  Keywords = ["smartedu", "downloader"]
