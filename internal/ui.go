@@ -202,7 +202,7 @@ func createOperationArea(w fyne.Window, inputData binding.String) *fyne.Containe
 			dialog.NewError(fmt.Errorf("未解析到有效资源"), w).Show()
 			return
 		}
-		
+
 		// 下载任务 更新进度条
 		downloadManager := NewDownloadManager(w, progressBar, progressLabel, downloadPath, resourceURLs)
 		downloadManager.startDownload()

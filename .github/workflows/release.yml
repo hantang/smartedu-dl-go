@@ -174,7 +174,7 @@ jobs:
 
   release:
     needs:
-      [package_darwin_arm, package_darwin_intel, package_windows]
+      [package_linux, package_darwin_arm, package_darwin_intel, package_windows]
     runs-on: ubuntu-latest
     steps:
       - name: Download artifact
