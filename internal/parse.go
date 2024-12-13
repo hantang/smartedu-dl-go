@@ -90,15 +90,15 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 	var result []LinkData
 	var items []ResourceItem
 
-	// 尝试解析为ResourceResponse
-	var response ResourceResponse
+	// 尝试解析为ResourceItemExt
+	var response ResourceItemExt
 	if err := json.Unmarshal(data, &response); err == nil {
 		if len(response.Relations.NationalCourseResource) > 0 {
 			items = response.Relations.NationalCourseResource
 		}
 	}
 
-	// 如果不是ResourceResponse，尝试解析为ResourceItem数组
+	// 如果不是ResourceItemExt，尝试解析为ResourceItem数组
 	if len(items) == 0 {
 		if err := json.Unmarshal(data, &items); err != nil {
 			// 如果不是数组，尝试解析为单个ResourceItem

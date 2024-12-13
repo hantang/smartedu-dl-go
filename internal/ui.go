@@ -17,50 +17,65 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
+func createCombobox(title string, options []string) *fyne.Container {
+	label := widget.NewLabel(title)
+	dropdown := widget.NewSelect(options, func(selected string) {
+		// Handle selection
+	})
+	return container.NewBorder(nil, nil, label, nil, dropdown)
+}
+
 func createOptionsTab(inputData binding.String) *fyne.Container {
-	// TODO
-
 	inputData.Set("")
+	tagItem, _, docPDFMap := FetchRawData("", true)
 
-	// left side: checkbox list
-	dataList := []string{
-		"Option 1",
-		"Option 2",
-		"Option 3",
-		"Option 4",
+	queryButton := widget.NewButton("查询", func() {
+		// Handle query action
+	})
+
+	dropdownContainer := container.NewVBox()
+	title, optionNames, optionIDs, children := Query(tagItem, docPDFMap)
+	_ = optionIDs
+	_ = children
+	if len(optionNames) > 0 {
+		// Create new dropdown for child options
+		childDropdown := createCombobox(title, optionNames)
+		dropdownContainer.Add(childDropdown)
 	}
+
+	dataList := []string{}
 	var checkboxes []fyne.CanvasObject
 	for _, value := range dataList {
 		checkbox := widget.NewCheck(value, func(checked bool) {
-			// 处理复选框状态变化的逻辑
+			// Handle checkbox state change
 		})
 		checkboxes = append(checkboxes, checkbox)
 	}
 
 	selectButton := widget.NewButton("全选", func() {
-		// Handle query action
+		for _, obj := range checkboxes {
+			if checkbox, ok := obj.(*widget.Check); ok {
+				checkbox.SetChecked(true)
+			}
+		}
 	})
+
 	deselectButton := widget.NewButton("清空", func() {
-		// Handle query action
+		for _, obj := range checkboxes {
+			if checkbox, ok := obj.(*widget.Check); ok {
+				checkbox.SetChecked(false)
+			}
+		}
 	})
 
-	// Right side: Dropdown and query button
-	dropdown := widget.NewSelect([]string{"Option 1", "Option 2"}, func(selected string) {
-		// Handle selection
-	})
-	queryButton := widget.NewButton("查询", func() {
-		// Handle query action
-	})
-
+	// Create containers
 	left := container.NewBorder(
 		nil, container.NewCenter(container.NewHBox(selectButton, deselectButton)), nil, nil,
 		container.NewVBox(checkboxes...),
 	)
 
-	right := container.NewBorder(
-		nil, container.NewCenter(queryButton), nil, nil,
-		container.NewVBox(dropdown),
-	)
+	right := container.NewBorder(nil, container.NewCenter(queryButton), nil, nil, dropdownContainer)
+
 	return container.NewBorder(nil, nil, nil, nil, container.NewHSplit(left, right))
 }
 
