@@ -33,9 +33,10 @@ func ValidURL(link string) bool {
 
 func parseURL(link string, audio bool, random bool) ([]string, error) {
 	// 解析 smartedu.cn 详情页链接，得到json资源链接
+	var configURLList []string
 	parsedURL, err := url.Parse(link)
 	if err != nil {
-		return nil, err
+		return configURLList, err
 	}
 
 	// 提取主机、路径和查询参数
@@ -44,7 +45,7 @@ func parseURL(link string, audio bool, random bool) ([]string, error) {
 	queryParams := parsedURL.Query()
 	configInfo, ok := RESOURCES_MAP[path]
 	if !ok {
-		return nil, fmt.Errorf("invalid map key: %s", path)
+		return configURLList, fmt.Errorf("invalid url path: %s", path)
 	}
 
 	contentTypeKey := "contentType"
@@ -54,6 +55,11 @@ func parseURL(link string, audio bool, random bool) ([]string, error) {
 	for _, key := range paramList {
 		paramDict[key] = queryParams.Get(key)
 	}
+	if path == "/tchMaterial/detail" && paramDict[contentTypeKey] != "assets_document" {
+		slog.Warn(fmt.Sprintf("Error %s = %s. Ignore", contentTypeKey, paramDict[contentTypeKey]))
+		return configURLList, fmt.Errorf("invalid %s: %s", contentTypeKey, paramDict[contentTypeKey])
+	}
+
 	if random {
 		paramDict[serverKey] = SERVER_LIST[rand.Intn(len(SERVER_LIST))]
 	} else {
@@ -61,7 +67,6 @@ func parseURL(link string, audio bool, random bool) ([]string, error) {
 	}
 	slog.Debug("paramDict = " + fmt.Sprintf("%v", paramDict))
 
-	var configURLList []string
 	configURL := fmt.Sprintf(configInfo.resources.basic, paramDict[serverKey], paramDict[configInfo.params[0]])
 	configURLList = append(configURLList, configURL)
 

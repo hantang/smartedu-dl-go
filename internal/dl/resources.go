@@ -37,13 +37,15 @@ var RESOURCES_MAP = map[string]ResourceData{
 		params:   []string{"contentId"},
 		examples: []string{},
 		resources: ResourceInfo{
-			// 课本PDF
+			// 课本PDF // 限制 contentType=assets_document
 			basic: "https://%s.ykt.cbern.com.cn/zxx/ndrv2/resources/tch_material/details/%s.json",
 			// 备用 旧版本
 			backup: "https://%s.ykt.cbern.com.cn/zxx/ndrs/resources/tch_material/details/%s.json",
 			// 配套音频
 			audio: "https://%s.ykt.cbern.com.cn/zxx/ndrs/resources/%s/relation_audios.json",
 		},
+		// 如果 contentType=thematic_course TODO
+		// https://%s.ykt.cbern.com.cn/zxx/ndrs/special_edu/thematic_course/trees/%s.json 不一定有PDF
 	},
 
 	"/syncClassroom/prepare/detail": {
