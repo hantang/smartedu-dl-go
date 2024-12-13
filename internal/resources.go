@@ -66,7 +66,7 @@ var RESOURCES_MAP = map[string]ResourceData{
 	},
 
 	"/syncClassroom/prepare/detail": {
-		name:     "课程教学>教师授课备课",
+		name:     "课程教学>教师授课备课>课件/教学设计",
 		params:   []string{"resourceId"},
 		examples: []string{},
 		resources: ResourceInfo{
@@ -75,15 +75,25 @@ var RESOURCES_MAP = map[string]ResourceData{
 		},
 	},
 	"/syncClassroom/classActivity": {
-		name:     "课程教学>学生自主学习, 课程教学>教师备课资源",
+		name:     "课程教学>学生自主学习, 课程教学>教师备课资源>课程包",
 		params:   []string{"activityId"},
 		examples: []string{},
 		resources: ResourceInfo{
 			basic: "https://%s.ykt.cbern.com.cn/zxx/ndrv2/national_lesson/resources/details/%s.json",
 		},
 	},
-	// TODO 
-	// https://basic.smartedu.cn/syncClassroom/examinationpapers
+	// "/syncClassroom/examinationpapers": {
+	// 	name:     "课程教学>教师授课备课>习题资源", // 数据是json 忽略
+	// 	params:   []string{"resourceId"},
+	// 	examples: []string{
+	// 		"https://basic.smartedu.cn/syncClassroom/examinationpapers?resourceId=95af8600-c178-488e-98ce-918106d4fdba&chapterId=538ac938-a87d-37e9-9a3c-a2fb8322329e&teachingmaterialId=d92ca54e-2cdc-4921-95f3-769eafd0c814&fromPrepare=1",
+	// 	},
+	// 	resources: ResourceInfo{
+	// 		basic: "https://%s.ykt.cbern.com.cn/zxx/ndrs/examinationpapers/resources/details/%s.json", // -> create_container_id
+	// step2: "https://bdcs-file-2.ykt.cbern.com.cn/xedu_cs_paper_bank/api_static/papers/${create_container_id}/data.json" // -> question_path_list
+	// step3: "https://bdcs-file-2.ykt.cbern.com.cn/xedu_cs_paper_bank/api_static/papers/${question_path_list[0]}/question_files/0.json"
+	// 	},
+	// },
 }
 
 type FormatData struct {
