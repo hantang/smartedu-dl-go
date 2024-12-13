@@ -1,8 +1,8 @@
 package internal
 
 import (
-	// "fmt"
 	"fmt"
+	"image/color"
 	"log/slog"
 	"os"
 	"path"
@@ -68,7 +68,7 @@ func createOptionsTab(inputData binding.String) *fyne.Container {
 func createInputTab(inputData binding.String) *fyne.Container {
 	// Multi-line text input for URL
 	urlInput := widget.NewMultiLineEntry()
-	urlInput.SetPlaceHolder("输入smart.edu资源链接")
+	urlInput.SetPlaceHolder("输入 smart.edu 资源链接")
 
 	// Bind the input to inputData
 	urlInput.OnChanged = func(text string) {
@@ -92,8 +92,9 @@ func createInputTab(inputData binding.String) *fyne.Container {
 		"\n\n可以直接从浏览器地址复制URL。"
 
 	// Create label
-	description := widget.NewLabel(info)
-	return container.NewBorder(nil, container.NewVBox(clearButton, description), nil, nil, urlInput)
+	bottom := container.NewVBox(container.NewCenter(clearButton),
+		container.NewHBox(widget.NewLabel(""), widget.NewLabel(info)))
+	return container.NewBorder(nil, bottom, nil, nil, urlInput)
 }
 
 func createFormatCheckboxes() []fyne.CanvasObject {
@@ -117,6 +118,8 @@ func createFormatCheckboxes() []fyne.CanvasObject {
 func createOperationArea(w fyne.Window, inputData binding.String) *fyne.Container {
 	// Progress bar
 	progressBar := widget.NewProgressBar()
+	progressLabel := widget.NewLabel("")
+
 	var wg sync.WaitGroup
 
 	// Resource type checkboxes
@@ -129,6 +132,7 @@ func createOperationArea(w fyne.Window, inputData binding.String) *fyne.Containe
 	pathLabel := widget.NewLabel("保存目录: ")
 	pathEntry := widget.NewEntry()
 	pathEntry.SetPlaceHolder("从“选择目录”中更新路径，输入无效，默认下载目录【Downloads】")
+	// pathEntry.Disable()
 
 	selectPathButton := widget.NewButton("选择目录", func() {
 		dialog.NewFolderOpen(func(dir fyne.ListableURI, err error) {
@@ -221,13 +225,14 @@ func createOperationArea(w fyne.Window, inputData binding.String) *fyne.Containe
 				} else {
 					success++
 				}
-				progressBar.SetValue(baseValue + float64(i)/float64(len(resourceURLs))*(100-baseValue))
+				progressBar.SetValue(baseValue + float64(i)/float64(len(resourceURLs))*(90-baseValue))
 			}
 
 			statsInfo := fmt.Sprintf("- 成功: %d\n- 失败: %d", success, failed)
 			if success > 0 {
 				statsInfo += fmt.Sprintf("\n(已保存至%v)", downloadPath)
 			}
+			progressBar.SetValue(100)
 			dialog.NewInformation("完成", "文件下载完成\n"+statsInfo, w).Show()
 		}()
 	})
@@ -237,20 +242,25 @@ func createOperationArea(w fyne.Window, inputData binding.String) *fyne.Containe
 		separator,
 		container.NewHBox(formatLabel, container.NewHBox(checkboxes...)),
 		container.NewBorder(nil, nil, pathLabel, container.NewHBox(selectPathButton, downloadButton), pathEntry),
-		progressBar,
+		progressBar, progressLabel,
 	)
 }
 
 func InitUI() {
-	// a := app.New()
 	a := app.NewWithID("io.github.hantang.smartedudl")
+	customTheme := NewCustomTheme()
+	a.Settings().SetTheme(customTheme)
 
-	// TODO 设置应用图标
 	w := a.NewWindow(APP_NAME)
 
 	// Menu and title
 	toolbar := widget.NewToolbar(
 		widget.NewToolbarAction(theme.SettingsIcon(), func() {
+			picker := dialog.NewColorPicker("主题设置", "选择主题颜色", func(c color.Color) {
+				customTheme.primaryColor = c
+				a.Settings().SetTheme(customTheme)
+			}, w)
+			picker.Show()
 		}),
 		widget.NewToolbarAction(theme.InfoIcon(), func() {
 			dialog.NewInformation("关于", APP_DESC, w).Show()

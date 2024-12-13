@@ -44,12 +44,12 @@ jobs:
         run: go install fyne.io/fyne/v2/cmd/fyne@latest
 
       - name: ZIP package
-        run: mv "${{ env.FULLNAME }}.tar.gz" ${{ env.NAME }}-${{ env.VERSION }}-linux.tar.gz
+        run: mv "${{ env.FULLNAME }}.tar.xz" ${{ env.NAME }}-${{ env.VERSION }}-linux.tar.xz
 
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ env.NAME }}-linux
-          path: ${{ env.NAME }}-${{ env.VERSION }}-linux.tar.gz
+          path: ${{ env.NAME }}-${{ env.VERSION }}-linux.tar.xz
           # if-no-files-found: error
           overwrite: true
 
@@ -193,7 +193,7 @@ jobs:
       - name: Generate SHA256 checksums
         run: |
           sha256sum *.zip >> SHA256SUMS.txt
-          # sha256sum *.tar.gz >> SHA256SUMS.txt
+          sha256sum *.tar.xz >> SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       - name: Release
@@ -205,4 +205,4 @@ jobs:
           files: |
             SHA256SUMS.txt
             *.zip
-
+            *.tar.xz
