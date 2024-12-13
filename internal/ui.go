@@ -7,7 +7,6 @@ import (
 	"os"
 	"path"
 	"strings"
-	"sync"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -118,9 +117,7 @@ func createFormatCheckboxes() []fyne.CanvasObject {
 func createOperationArea(w fyne.Window, inputData binding.String) *fyne.Container {
 	// Progress bar
 	progressBar := widget.NewProgressBar()
-	progressLabel := widget.NewLabel("")
-
-	var wg sync.WaitGroup
+	progressLabel := widget.NewLabel("当前无下载内容")
 
 	// Resource type checkboxes
 	formatLabel := widget.NewLabel("资源类型: ")
@@ -198,43 +195,17 @@ func createOperationArea(w fyne.Window, inputData binding.String) *fyne.Containe
 		}
 		slog.Info(fmt.Sprintf("formatList is %v", len(formatList)))
 
-		progressBar.SetValue(0)
-		// 启动下载过程
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		resourceURLs := ExtractResources(filteredURLs, formatList, false)
+		progressLabel.SetText(fmt.Sprintf("共解析到%d个资源", len(resourceURLs)))
 
-			resourceURLs := ExtractResources(filteredURLs, formatList, false)
-			slog.Info(fmt.Sprintf("resourceURLs is %v", len(resourceURLs)))
-			baseValue := 10.0
-			progressBar.SetValue(baseValue)
-
-			outputDir := downloadPath
-			if err := os.MkdirAll(outputDir, os.ModePerm); err != nil {
-				slog.Warn(fmt.Sprintf("创建目录失败: %v", err))
-				dialog.NewInformation("错误", "下载失败: \n"+err.Error(), w).Show()
-			}
-
-			var success, failed int
-			for i, link := range resourceURLs {
-				filename := fmt.Sprintf("%s.%s", link.title, link.format)
-				filePath := path.Join(outputDir, filename)
-				err := DownloadFile(link.url, filePath)
-				if err != nil {
-					failed++
-				} else {
-					success++
-				}
-				progressBar.SetValue(baseValue + float64(i)/float64(len(resourceURLs))*(90-baseValue))
-			}
-
-			statsInfo := fmt.Sprintf("- 成功: %d\n- 失败: %d", success, failed)
-			if success > 0 {
-				statsInfo += fmt.Sprintf("\n(已保存至%v)", downloadPath)
-			}
-			progressBar.SetValue(100)
-			dialog.NewInformation("完成", "文件下载完成\n"+statsInfo, w).Show()
-		}()
+		if len(resourceURLs) == 0 {
+			dialog.NewError(fmt.Errorf("未解析到有效资源"), w).Show()
+			return
+		}
+		
+		// 下载任务 更新进度条
+		downloadManager := NewDownloadManager(w, progressBar, progressLabel, downloadPath, resourceURLs)
+		downloadManager.startDownload()
 	})
 
 	separator := widget.NewSeparator()

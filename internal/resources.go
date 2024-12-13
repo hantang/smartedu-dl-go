@@ -26,12 +26,12 @@ type TiItem struct {
 	TiFormat   string   `json:"ti_format"`
 }
 
-
 // 资源文件中抽取得到格式（后缀）、标题（文件名）和下载链接
 type LinkData struct {
 	format string
 	title  string
 	url    string
+	size   int64
 }
 
 // 服务器前缀
@@ -80,7 +80,7 @@ type FormatData struct {
 	name   string
 	suffix string
 	status bool
-	check bool
+	check  bool
 }
 
 var FORMAT_LIST = []FormatData{
@@ -89,7 +89,7 @@ var FORMAT_LIST = []FormatData{
 	{"音频(OGG)", "ogg", true, false},
 	{"图片", "jpg", true, false},
 	{"视频", "m3u8", false, false},
-	{"白板","whiteboard", true, false},
+	{"白板", "whiteboard", true, false},
 }
 
 const APP_NAME string = "smartedu-dl"
