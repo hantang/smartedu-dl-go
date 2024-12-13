@@ -96,7 +96,7 @@ func ParseURLsFromJSON(data []byte) ([]string, error) {
 	}
 }
 
-func FetchRawData(name string, local bool) (TagItem, map[string]string, map[string]DocPDFData) {
+func FetchRawData(name string, local bool) ([]TagItem, map[string]string, map[string]DocPDFData) {
 	dataDir := "data/tchMaterial"
 	tagURL := TchMaterialInfo.tag
 	versionURL := TchMaterialInfo.version
@@ -107,20 +107,20 @@ func FetchRawData(name string, local bool) (TagItem, map[string]string, map[stri
 		versionFile = path.Join(dataDir, path.Base(versionURL))
 	}
 
-	var tagItem TagItem
+	var tagItems []TagItem
 	tagData, err := fetchJSONFile(tagFile)
 	if err != nil {
-		return tagItem, nil, nil
+		return tagItems, nil, nil
 	}
 
 	versionData, err := fetchJSONFile(versionFile)
 	if err != nil {
-		return tagItem, nil, nil
+		return tagItems, nil, nil
 	}
 
 	urls, err := ParseURLsFromJSON(versionData)
 	if err != nil {
-		return tagItem, nil, nil
+		return tagItems, nil, nil
 	}
 
 	dataList := [][]byte{}
@@ -136,13 +136,13 @@ func FetchRawData(name string, local bool) (TagItem, map[string]string, map[stri
 	tagMap, docPDFMap := ParseDataList(dataList)
 	tagBase := ParseHierarchies(tagData)
 	if len(tagBase.Hierarchies) > 0 && len(tagBase.Hierarchies[0].Children) > 0 {
-		tagItem = tagBase.Hierarchies[0].Children[0]
+		tagItems = tagBase.Hierarchies[0].Children
 	}
 
 	slog.Debug(fmt.Sprintf("tagMap: %d", len(tagMap)))
 	slog.Debug(fmt.Sprintf("docPDFMap: %d", len(docPDFMap)))
 
-	return tagItem, tagMap, docPDFMap
+	return tagItems, tagMap, docPDFMap
 }
 
 func Query(tagItem TagItem, docPDFMap map[string]DocPDFData) (string, []string, []string, []TagItem) {

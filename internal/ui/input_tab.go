@@ -6,6 +6,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -23,7 +24,7 @@ func CreateInputTab(inputData binding.String) *fyne.Container {
 	}
 
 	// Clear button
-	clearButton := widget.NewButton("清空", func() {
+	clearButton := widget.NewButtonWithIcon("清空", theme.DeleteIcon(), func() {
 		urlInput.SetText("")
 		if err := inputData.Set(""); err != nil {
 			slog.Error("清空失败", "error", err)

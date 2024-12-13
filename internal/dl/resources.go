@@ -23,6 +23,11 @@ var FORMAT_LIST = []FormatData{
 	{"白板", "whiteboard", true, false},
 }
 
+var TAB_NAMES = [] string{
+	"输入链接",
+	"教材列表",
+}
+
 // 电子教材层级和列表数据等
 var TchMaterialInfo = ResourceMetaInfo{
 	version: "https://s-file-1.ykt.cbern.com.cn/zxx/ndrs/resources/tch_material/version/data_version.json",
