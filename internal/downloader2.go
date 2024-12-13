@@ -94,7 +94,7 @@ func (dm *DownloadManager) startDownload() {
 		if successCount > 0 {
 			statsInfo += fmt.Sprintf("\n(已保存至%v)", dm.downloadsDir)
 		}
-		dm.statusLabel.SetText(fmt.Sprintf("下载完成: 成功/失败 = %d/%d", successCount, len(dm.links)))
+		dm.statusLabel.SetText(fmt.Sprintf("下载完成: 成功/失败 = %d/%d", successCount, failedCount))
 		dialog.NewInformation("完成", "文件下载完成\n"+statsInfo, dm.window).Show()
 	}()
 }

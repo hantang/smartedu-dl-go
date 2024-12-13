@@ -195,7 +195,7 @@ func createOperationArea(w fyne.Window, inputData binding.String) *fyne.Containe
 		}
 		slog.Info(fmt.Sprintf("formatList is %v", len(formatList)))
 
-		resourceURLs := ExtractResources(filteredURLs, formatList, false)
+		resourceURLs := ExtractResources(filteredURLs, formatList, true)
 		progressLabel.SetText(fmt.Sprintf("共解析到%d个资源", len(resourceURLs)))
 
 		if len(resourceURLs) == 0 {

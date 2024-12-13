@@ -13,6 +13,13 @@ type ResourceData struct {
 	resources ResourceInfo
 }
 
+// 顶层响应结构
+type ResourceResponse struct {
+	Relations struct {
+		NationalCourseResource []ResourceItem `json:"national_course_resource"`
+	} `json:"relations"`
+}
+
 // 资源文件
 type ResourceItem struct {
 	TiItems      []TiItem `json:"ti_items"`
@@ -24,6 +31,7 @@ type ResourceItem struct {
 type TiItem struct {
 	TiStorages []string `json:"ti_storages"`
 	TiFormat   string   `json:"ti_format"`
+	TiSize     int64    `json:"ti_size"`
 }
 
 // 资源文件中抽取得到格式（后缀）、标题（文件名）和下载链接
@@ -74,6 +82,8 @@ var RESOURCES_MAP = map[string]ResourceData{
 			basic: "https://%s.ykt.cbern.com.cn/zxx/ndrv2/national_lesson/resources/details/%s.json",
 		},
 	},
+	// TODO 
+	// https://basic.smartedu.cn/syncClassroom/examinationpapers
 }
 
 type FormatData struct {

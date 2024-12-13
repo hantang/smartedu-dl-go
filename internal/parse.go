@@ -31,7 +31,6 @@ func ValidURL(link string) bool {
 	return true
 }
 
-
 func parseURL(link string, audio bool, random bool) ([]string, error) {
 	// 解析 smartedu.cn 详情页链接，得到json资源链接
 	parsedURL, err := url.Parse(link)
@@ -60,6 +59,7 @@ func parseURL(link string, audio bool, random bool) ([]string, error) {
 	} else {
 		paramDict[serverKey] = SERVER_LIST[0]
 	}
+	slog.Debug("paramDict = " + fmt.Sprintf("%v", paramDict))
 
 	var configURLList []string
 	configURL := fmt.Sprintf(configInfo.resources.basic, paramDict[serverKey], paramDict[configInfo.params[0]])
@@ -88,24 +88,38 @@ func parseURLList(links []string, audio bool, random bool) []string {
 func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]LinkData, error) {
 	// 解析资源文件（json格式），得到最终下来文件的链接
 	var result []LinkData
-
-	// 可能是数组或者字典对象
 	var items []ResourceItem
-	if err := json.Unmarshal(data, &items); err != nil {
-		var item ResourceItem
-		if err := json.Unmarshal(data, &item); err != nil {
-			return nil, err
+
+	// 尝试解析为ResourceResponse
+	var response ResourceResponse
+	if err := json.Unmarshal(data, &response); err == nil {
+		if len(response.Relations.NationalCourseResource) > 0 {
+			items = response.Relations.NationalCourseResource
 		}
-		items = []ResourceItem{item}
 	}
 
+	// 如果不是ResourceResponse，尝试解析为ResourceItem数组
+	if len(items) == 0 {
+		if err := json.Unmarshal(data, &items); err != nil {
+			// 如果不是数组，尝试解析为单个ResourceItem
+			var item ResourceItem
+			if err := json.Unmarshal(data, &item); err != nil {
+				return nil, err
+			}
+			items = []ResourceItem{item}
+		}
+	}
+
+	// 处理每个ResourceItem
 	for i, item := range items {
-		var title = item.Title
+		title := item.Title
 		if title == "" && item.ResourceType != "" {
 			title = fmt.Sprintf("%s-%03d", item.ResourceType, i)
 		}
 		var link string
 		var format string
+		var size int64
+
 		for _, tiItem := range item.TiItems {
 			if !slices.Contains(tiFormatList, tiItem.TiFormat) || len(tiItem.TiStorages) == 0 {
 				continue
@@ -118,6 +132,7 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 			}
 			link = tiItem.TiStorages[randomIndex]
 			format = tiItem.TiFormat
+			size = tiItem.TiSize
 			if title == "" {
 				title = fmt.Sprintf("%s-%03d", strings.ToUpper(format), i)
 			}
@@ -131,6 +146,7 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 				format: format,
 				title:  title,
 				url:    link,
+				size:   size,
 			})
 		}
 	}
@@ -154,16 +170,18 @@ func ExtractResources(links []string, formatList []string, random bool) []LinkDa
 	slog.Debug(fmt.Sprintf("configURLList is %v", len(configURLList)))
 
 	for _, url := range configURLList {
+		slog.Debug("config url = " + url)
 		data, err := FetchJsonData(url)
 		if err != nil {
+			slog.Warn(fmt.Sprintf("fetch data error: %v", err))
 			continue
 		}
 		resources, err := parseResourceItems(data, formatList, random)
 		if err != nil {
+			slog.Warn(fmt.Sprintf("parse resource data error: %v", err))
 			continue
 		}
 		result = append(result, resources...)
 	}
 	return result
 }
-
