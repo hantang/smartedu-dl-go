@@ -1,4 +1,4 @@
-package internal
+package ui
 
 import (
 	"fmt"
@@ -15,114 +15,22 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+
+	"github.com/hantang/smartedudlgo/internal/dl"
 )
-
-func createCombobox(title string, options []string) *fyne.Container {
-	label := widget.NewLabel(title)
-	dropdown := widget.NewSelect(options, func(selected string) {
-		// Handle selection
-	})
-	return container.NewBorder(nil, nil, label, nil, dropdown)
-}
-
-func createOptionsTab(inputData binding.String) *fyne.Container {
-	inputData.Set("")
-	tagItem, _, docPDFMap := FetchRawData("", true)
-
-	queryButton := widget.NewButton("查询", func() {
-		// Handle query action
-	})
-
-	dropdownContainer := container.NewVBox()
-	title, optionNames, optionIDs, children := Query(tagItem, docPDFMap)
-	_ = optionIDs
-	_ = children
-	if len(optionNames) > 0 {
-		// Create new dropdown for child options
-		childDropdown := createCombobox(title, optionNames)
-		dropdownContainer.Add(childDropdown)
-	}
-
-	dataList := []string{}
-	var checkboxes []fyne.CanvasObject
-	for _, value := range dataList {
-		checkbox := widget.NewCheck(value, func(checked bool) {
-			// Handle checkbox state change
-		})
-		checkboxes = append(checkboxes, checkbox)
-	}
-
-	selectButton := widget.NewButton("全选", func() {
-		for _, obj := range checkboxes {
-			if checkbox, ok := obj.(*widget.Check); ok {
-				checkbox.SetChecked(true)
-			}
-		}
-	})
-
-	deselectButton := widget.NewButton("清空", func() {
-		for _, obj := range checkboxes {
-			if checkbox, ok := obj.(*widget.Check); ok {
-				checkbox.SetChecked(false)
-			}
-		}
-	})
-
-	// Create containers
-	left := container.NewBorder(
-		nil, container.NewCenter(container.NewHBox(selectButton, deselectButton)), nil, nil,
-		container.NewVBox(checkboxes...),
-	)
-
-	right := container.NewBorder(nil, container.NewCenter(queryButton), nil, nil, dropdownContainer)
-
-	return container.NewBorder(nil, nil, nil, nil, container.NewHSplit(left, right))
-}
-
-func createInputTab(inputData binding.String) *fyne.Container {
-	// Multi-line text input for URL
-	urlInput := widget.NewMultiLineEntry()
-	urlInput.SetPlaceHolder("输入 smart.edu 资源链接")
-
-	// Bind the input to inputData
-	urlInput.OnChanged = func(text string) {
-		if err := inputData.Set(text); err != nil {
-			slog.Error("Failed to update inputData", "error", err)
-		}
-	}
-
-	// Clear button
-	clearButton := widget.NewButton("清空", func() {
-		urlInput.SetText("")
-		if err := inputData.Set(""); err != nil {
-			slog.Error("清空失败", "error", err)
-		}
-	})
-
-	// Description text
-	info := "支持的URL格式示例：" +
-		"\n- 教材URL: https://basic.smartedu.cn/tchMaterial/detail?contentType=assets_document&contentId={contentId}" +
-		"\n- 课件URL: https://basic.smartedu.cn/syncClassroom/classActivity?activityId={activityId}" +
-		"\n\n可以直接从浏览器地址复制URL。"
-
-	// Create label
-	bottom := container.NewVBox(container.NewCenter(clearButton),
-		container.NewHBox(widget.NewLabel(""), widget.NewLabel(info)))
-	return container.NewBorder(nil, bottom, nil, nil, urlInput)
-}
 
 func createFormatCheckboxes() []fyne.CanvasObject {
 	var checkboxes []fyne.CanvasObject
 
-	for _, format := range FORMAT_LIST {
-		checkbox := widget.NewCheck(format.name, func(checked bool) {
+	for _, format := range dl.FORMAT_LIST {
+		checkbox := widget.NewCheck(format.Name, func(checked bool) {
 			// 处理复选框状态变化的逻辑
 		})
 
-		if !format.status {
+		if !format.Status {
 			checkbox.Disable()
 		} else {
-			checkbox.SetChecked(format.check)
+			checkbox.SetChecked(format.Check)
 		}
 		checkboxes = append(checkboxes, checkbox)
 	}
@@ -185,7 +93,7 @@ func createOperationArea(w fyne.Window, inputData binding.String) *fyne.Containe
 		urlList := strings.Split(urlContent, "\n")
 		filteredURLs := []string{}
 		for _, link := range urlList {
-			if ValidURL(link) {
+			if dl.ValidURL(link) {
 				filteredURLs = append(filteredURLs, link)
 			}
 		}
@@ -200,7 +108,7 @@ func createOperationArea(w fyne.Window, inputData binding.String) *fyne.Containe
 		for i, checkbox := range checkboxes {
 			if checkbox.(*widget.Check).Checked {
 				// slog.Debug("format", FORMAT_LIST[i].suffix, checkbox.(*widget.Check).Text)
-				formatList = append(formatList, FORMAT_LIST[i].suffix)
+				formatList = append(formatList, dl.FORMAT_LIST[i].Suffix)
 			}
 		}
 
@@ -209,8 +117,9 @@ func createOperationArea(w fyne.Window, inputData binding.String) *fyne.Containe
 			return
 		}
 		slog.Info(fmt.Sprintf("formatList is %v", len(formatList)))
+		slog.Debug(fmt.Sprintf("formatList =\n %v", formatList))
 
-		resourceURLs := ExtractResources(filteredURLs, formatList, true)
+		resourceURLs := dl.ExtractResources(filteredURLs, formatList, true)
 		progressLabel.SetText(fmt.Sprintf("共解析到%d个资源", len(resourceURLs)))
 
 		if len(resourceURLs) == 0 {
@@ -219,8 +128,8 @@ func createOperationArea(w fyne.Window, inputData binding.String) *fyne.Containe
 		}
 
 		// 下载任务 更新进度条
-		downloadManager := NewDownloadManager(w, progressBar, progressLabel, downloadPath, resourceURLs)
-		downloadManager.startDownload()
+		downloadManager := dl.NewDownloadManager(w, progressBar, progressLabel, downloadPath, resourceURLs)
+		downloadManager.StartDownload()
 	})
 
 	separator := widget.NewSeparator()
@@ -233,11 +142,11 @@ func createOperationArea(w fyne.Window, inputData binding.String) *fyne.Containe
 }
 
 func InitUI() {
-	a := app.NewWithID("io.github.hantang.smartedudl")
+	a := app.NewWithID(dl.APP_ID)
 	customTheme := NewCustomTheme()
 	a.Settings().SetTheme(customTheme)
 
-	w := a.NewWindow(APP_NAME)
+	w := a.NewWindow(dl.APP_NAME)
 
 	// Menu and title
 	toolbar := widget.NewToolbar(
@@ -249,7 +158,7 @@ func InitUI() {
 			picker.Show()
 		}),
 		widget.NewToolbarAction(theme.InfoIcon(), func() {
-			dialog.NewInformation("关于", APP_DESC, w).Show()
+			dialog.NewInformation("关于", dl.APP_DESC, w).Show()
 
 		}),
 		widget.NewToolbarAction(theme.HelpIcon(), func() {
@@ -260,8 +169,8 @@ func InitUI() {
 	// Tab container
 	inputData := binding.NewString()
 	tabContainer := container.NewAppTabs(
-		container.NewTabItem("输入链接", createInputTab(inputData)),
-		container.NewTabItem("教材列表", createOptionsTab(inputData)),
+		container.NewTabItem("输入链接", CreateInputTab(inputData)),
+		container.NewTabItem("教材列表", CreateOptionsTab(inputData)),
 	)
 
 	// Bottom operation area

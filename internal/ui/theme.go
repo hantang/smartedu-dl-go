@@ -1,4 +1,4 @@
-package internal
+package ui
 
 import (
 	"image/color"

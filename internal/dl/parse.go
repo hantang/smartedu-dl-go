@@ -1,4 +1,4 @@
-package internal
+package dl
 
 import (
 	"encoding/json"
@@ -143,10 +143,10 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 		if link != "" {
 			link = cleanURL(link)
 			result = append(result, LinkData{
-				format: format,
-				title:  title,
-				url:    link,
-				size:   size,
+				Format: format,
+				Title:  title,
+				URL:    link,
+				Size:   size,
 			})
 		}
 	}

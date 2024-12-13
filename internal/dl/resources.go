@@ -1,5 +1,6 @@
-package internal
+package dl
 
+const APP_ID string = "io.github.hantang.smartedudl"
 const APP_NAME string = "smartedu-dl"
 const APP_DESC string = "本工具用于下载智慧教育平台中的教材资源，支持批量下载PDF等资源。"
 const APP_VERSION string = "0.0.1"
@@ -98,17 +99,17 @@ type ResourceData struct {
 
 // 资源文件中抽取得到格式（后缀）、标题（文件名）和下载链接
 type LinkData struct {
-	format string
-	title  string
-	url    string
-	size   int64
+	Format string
+	Title  string
+	URL    string
+	Size   int64
 }
 
 type FormatData struct {
-	name   string
-	suffix string
-	status bool
-	check  bool
+	Name   string
+	Suffix string
+	Status bool
+	Check  bool
 }
 
 // 教材PDF信息

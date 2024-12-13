@@ -1,4 +1,4 @@
-package internal
+package dl
 
 import (
 	"fmt"
@@ -33,7 +33,7 @@ func NewDownloadManager(window fyne.Window, progressBar *widget.ProgressBar, sta
 	}
 }
 
-func (dm *DownloadManager) startDownload() {
+func (dm *DownloadManager) StartDownload() {
 	if err := os.MkdirAll(dm.downloadsDir, 0755); err != nil {
 		dialog.ShowError(fmt.Errorf("下载目录创建失败: %v", err), dm.window)
 		dm.statusLabel.SetText("创建下载目录失败")
@@ -43,12 +43,12 @@ func (dm *DownloadManager) startDownload() {
 	// 计算文件大小
 	var totalSize int64
 	for i := range dm.links {
-		resp, err := http.Head(dm.links[i].url)
+		resp, err := http.Head(dm.links[i].URL)
 		if err != nil {
 			dialog.ShowError(err, dm.window)
 			return
 		}
-		dm.links[i].size = resp.ContentLength
+		dm.links[i].Size = resp.ContentLength
 		totalSize += resp.ContentLength
 	}
 
@@ -102,14 +102,14 @@ func (dm *DownloadManager) startDownload() {
 func (dm *DownloadManager) downloadFile(wg *sync.WaitGroup, file LinkData, downloadedBytes *atomic.Int64) bool {
 	defer wg.Done()
 
-	resp, err := http.Get(file.url)
+	resp, err := http.Get(file.URL)
 	if err != nil {
-		fmt.Printf("下载 %s 出错: %v\n", file.title, err)
+		fmt.Printf("下载 %s 出错: %v\n", file.Title, err)
 		return false
 	}
 	defer resp.Body.Close()
 
-	filename := fmt.Sprintf("%s.%s", file.title, file.format)
+	filename := fmt.Sprintf("%s.%s", file.Title, file.Format)
 	outputPath := filepath.Join(dm.downloadsDir, filename)
 	out, err := os.Create(outputPath)
 	if err != nil {
@@ -124,7 +124,7 @@ func (dm *DownloadManager) downloadFile(wg *sync.WaitGroup, file LinkData, downl
 		if n > 0 {
 			// Write to file
 			if _, err := out.Write(buffer[:n]); err != nil {
-				fmt.Printf("写入文件 %s 出错: %v\n", file.title, err)
+				fmt.Printf("写入文件 %s 出错: %v\n", file.Title, err)
 				return false
 			}
 			downloadedBytes.Add(int64(n))
@@ -133,7 +133,7 @@ func (dm *DownloadManager) downloadFile(wg *sync.WaitGroup, file LinkData, downl
 			break
 		}
 		if err != nil {
-			fmt.Printf("读取 %s 出错: %v\n", file.title, err)
+			fmt.Printf("读取 %s 出错: %v\n", file.Title, err)
 			return false
 		}
 	}
