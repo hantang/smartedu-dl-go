@@ -23,7 +23,7 @@ var FORMAT_LIST = []FormatData{
 	{"白板", "whiteboard", true, false},
 }
 
-var TAB_NAMES = [] string{
+var TAB_NAMES = []string{
 	"输入链接",
 	"教材列表",
 }
