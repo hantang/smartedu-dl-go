@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"log/slog"
+	"slices"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -35,6 +36,42 @@ func cleanData(left *fyne.Container, comboboxContainer *fyne.Container, index in
 
 }
 
+func createComboboxes(left *fyne.Container, comboboxContainer *fyne.Container, index int, optionData binding.StringList, docPDFMap map[string]dl.DocPDFData, tabItemsHistory []dl.TagItem) {
+	if tabItemsHistory == nil {
+		slog.Debug("tabItemsHistory is nil")
+		return
+	}
+	if index < 0 || index >= len(tabItemsHistory) {
+		slog.Debug(fmt.Sprintf("index = %d, tabItemsHistory = %d", index, len(tabItemsHistory)))
+		return
+	}
+
+	cleanData(left, comboboxContainer, index, optionData)
+	tagItem := tabItemsHistory[index]
+	title, optionNames, optionIDs, children := dl.Query(tagItem, docPDFMap)
+	if len(optionNames) > 0 {
+		if len(children) > 0 {
+			label := widget.NewLabel(title)
+			combobox := widget.NewSelect(optionNames, func(selected string) {
+				// 创建下一个下拉框
+				optIndex := slices.Index(optionNames, selected)
+				childItem := children[optIndex]
+				tabItemsHistory = append(tabItemsHistory[:index+1], childItem)
+
+				createComboboxes(left, comboboxContainer, index+1, optionData, docPDFMap, tabItemsHistory)
+			})
+			comboboxContainer.Add(container.NewBorder(nil, nil, label, nil, combobox))
+		} else {
+			// 最后一层，创建复选框
+			// createCheckboxes(left, optionNames, optionIDs, optionData)
+		}
+	} else {
+		dialog.ShowError(fmt.Errorf("数据查询为空"), nil)
+		// initData(nil, &docPDFMap, &tabItemsHistory)
+	}
+	comboboxContainer.Refresh()
+}
+
 func initRightPart(w fyne.Window, left *fyne.Container, optionData binding.StringList, local bool) *fyne.Container {
 	var tabItemsHistory []dl.TagItem // 计算当前tag层级状态
 	// right part: comboboxes for categories
@@ -52,6 +89,7 @@ func initRightPart(w fyne.Window, left *fyne.Container, optionData binding.Strin
 			slog.Debug(fmt.Sprintf("docPDFMap = %d", len(docPDFMap)))
 			queryButton.SetText("重置")
 			cleanData(left, comboboxContainer, 0, optionData)
+			createComboboxes(left, comboboxContainer, 0, optionData, docPDFMap, tabItemsHistory)
 
 		} else {
 			infoLabel.SetText("教材加载失败，稍后重试")
