@@ -30,8 +30,8 @@ var TAB_NAMES = []string{
 
 // 电子教材层级和列表数据等
 var TchMaterialInfo = ResourceMetaInfo{
-	version: "https://s-file-1.ykt.cbern.com.cn/zxx/ndrs/resources/tch_material/version/data_version.json",
-	tag:     "https://s-file-1.ykt.cbern.com.cn/zxx/ndrs/tags/tch_material_tag.json",
+	Version: "https://s-file-1.ykt.cbern.com.cn/zxx/ndrs/resources/tch_material/version/data_version.json",
+	Tag:     "https://s-file-1.ykt.cbern.com.cn/zxx/ndrs/tags/tch_material_tag.json",
 	detail:  "https://basic.smartedu.cn/tchMaterial/detail?contentType=assets_document&contentId=%s",
 }
 
@@ -86,8 +86,8 @@ var RESOURCES_MAP = map[string]ResourceData{
 
 // 数据结构
 type ResourceMetaInfo struct {
-	version string
-	tag     string
+	Version string
+	Tag     string
 	detail  string
 }
 

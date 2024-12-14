@@ -12,46 +12,46 @@ env:
   FULLNAME: "SmarteduDL"
 
 jobs:
-  package_linux:
-    # if: startsWith(github.ref, 'refs/tags/')
-    # needs: test
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
+  # package_linux:
+  #   # if: startsWith(github.ref, 'refs/tags/')
+  #   # needs: test
+  #   runs-on: ubuntu-24.04
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GOVERSION }}
+  #     - name: Set up Go
+  #       uses: actions/setup-go@v5
+  #       with:
+  #         go-version: ${{ env.GOVERSION }}
 
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install gcc libgl1-mesa-dev xorg-dev libfuse2
+  #     - name: Install build dependencies
+  #       run: |
+  #         sudo apt-get update
+  #         sudo apt-get install gcc libgl1-mesa-dev xorg-dev libfuse2
 
-      - name: Install Fyne tool
-        run: go install fyne.io/fyne/v2/cmd/fyne@latest
+  #     - name: Install Fyne tool
+  #       run: go install fyne.io/fyne/v2/cmd/fyne@latest
 
-      - name: Package Fyne app
-        run: fyne package -os linux --release
+  #     - name: Package Fyne app
+  #       run: fyne package -os linux --release
 
-      - name: Set version
-        run: |
-          VERSION=${{ github.ref_name }}
-          echo "VERSION=${VERSION:1}" >> $GITHUB_ENV
+  #     - name: Set version
+  #       run: |
+  #         VERSION=${{ github.ref_name }}
+  #         echo "VERSION=${VERSION:1}" >> $GITHUB_ENV
 
-      - name: Install Fyne tool
-        run: go install fyne.io/fyne/v2/cmd/fyne@latest
+  #     - name: Install Fyne tool
+  #       run: go install fyne.io/fyne/v2/cmd/fyne@latest
 
-      - name: ZIP package
-        run: mv "${{ env.FULLNAME }}.tar.xz" ${{ env.NAME }}-${{ env.VERSION }}-linux.tar.xz
+  #     - name: ZIP package
+  #       run: mv "${{ env.FULLNAME }}.tar.xz" ${{ env.NAME }}-${{ env.VERSION }}-linux.tar.xz
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.NAME }}-linux
-          path: ${{ env.NAME }}-${{ env.VERSION }}-linux.tar.xz
-          # if-no-files-found: error
-          overwrite: true
+  #     - uses: actions/upload-artifact@v4
+  #       with:
+  #         name: ${{ env.NAME }}-linux
+  #         path: ${{ env.NAME }}-${{ env.VERSION }}-linux.tar.xz
+  #         # if-no-files-found: error
+  #         overwrite: true
 
   package_windows:
     runs-on: windows-latest
@@ -98,83 +98,84 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-  package_darwin_arm:
-    runs-on: macos-14
-    steps:
-      - uses: actions/checkout@v4
+  # package_darwin_arm:
+  #   runs-on: macos-14
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: Set up Xcode
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: latest-stable
+  #     - name: Set up Xcode
+  #       uses: maxim-lobanov/setup-xcode@v1
+  #       with:
+  #         xcode-version: latest-stable
 
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: ${{ env.GOVERSION }}
+  #     - name: Set up Go
+  #       uses: actions/setup-go@v4
+  #       with:
+  #         go-version: ${{ env.GOVERSION }}
 
-      - name: Install Fyne tool
-        run: go install fyne.io/fyne/v2/cmd/fyne@latest
+  #     - name: Install Fyne tool
+  #       run: go install fyne.io/fyne/v2/cmd/fyne@latest
 
-      - name: Package app bundles
-        run: fyne package -os darwin --release
+  #     - name: Package app bundles
+  #       run: fyne package -os darwin --release
 
-      - name: Set version
-        run: |
-          VERSION=${{ github.ref_name }}
-          echo "VERSION=${VERSION:1}" >> $GITHUB_ENV
+  #     - name: Set version
+  #       run: |
+  #         VERSION=${{ github.ref_name }}
+  #         echo "VERSION=${VERSION:1}" >> $GITHUB_ENV
 
-      - name: ZIP app bundle
-        run: zip --symlinks -r ${{ env.NAME }}-${{ env.VERSION }}-darwin-arm64.zip "${{ env.FULLNAME }}.app/"
+  #     - name: ZIP app bundle
+  #       run: zip --symlinks -r ${{ env.NAME }}-${{ env.VERSION }}-darwin-arm64.zip "${{ env.FULLNAME }}.app/"
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.NAME }}-macos-arm
-          path: ${{ env.NAME }}-${{ env.VERSION }}-darwin-arm64.zip
-          if-no-files-found: error
-          overwrite: true
+  #     - name: Upload artifact
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: ${{ env.NAME }}-macos-arm
+  #         path: ${{ env.NAME }}-${{ env.VERSION }}-darwin-arm64.zip
+  #         if-no-files-found: error
+  #         overwrite: true
 
-  package_darwin_intel:
-    runs-on: macos-13
-    steps:
-      - uses: actions/checkout@v4
+  # package_darwin_intel:
+  #   runs-on: macos-13
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: Set up Xcode
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: latest-stable
+  #     - name: Set up Xcode
+  #       uses: maxim-lobanov/setup-xcode@v1
+  #       with:
+  #         xcode-version: latest-stable
 
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: ${{ env.GOVERSION }}
+  #     - name: Set up Go
+  #       uses: actions/setup-go@v4
+  #       with:
+  #         go-version: ${{ env.GOVERSION }}
 
-      - name: Install Fyne tool
-        run: go install fyne.io/fyne/v2/cmd/fyne@latest
+  #     - name: Install Fyne tool
+  #       run: go install fyne.io/fyne/v2/cmd/fyne@latest
 
-      - name: Package app bundles
-        run: fyne package -os darwin --release
+  #     - name: Package app bundles
+  #       run: fyne package -os darwin --release
 
-      - name: Set version
-        run: |
-          VERSION=${{ github.ref_name }}
-          echo "VERSION=${VERSION:1}" >> $GITHUB_ENV
+  #     - name: Set version
+  #       run: |
+  #         VERSION=${{ github.ref_name }}
+  #         echo "VERSION=${VERSION:1}" >> $GITHUB_ENV
 
-      - name: ZIP app bundle
-        run: zip --symlinks -r ${{ env.NAME }}-${{ env.VERSION }}-darwin-intel64.zip "${{ env.FULLNAME }}.app/"
+  #     - name: ZIP app bundle
+  #       run: zip --symlinks -r ${{ env.NAME }}-${{ env.VERSION }}-darwin-intel64.zip "${{ env.FULLNAME }}.app/"
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.NAME }}-macos-intel
-          path: ${{ env.NAME }}-${{ env.VERSION }}-darwin-intel64.zip
-          if-no-files-found: error
-          overwrite: true
+  #     - name: Upload artifact
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: ${{ env.NAME }}-macos-intel
+  #         path: ${{ env.NAME }}-${{ env.VERSION }}-darwin-intel64.zip
+  #         if-no-files-found: error
+  #         overwrite: true
 
   release:
     needs:
-      [package_linux, package_darwin_arm, package_darwin_intel, package_windows]
+      [package_windows]
+      # [package_linux, package_darwin_arm, package_darwin_intel, package_windows]
     runs-on: ubuntu-latest
     steps:
       - name: Download artifact
@@ -190,11 +191,11 @@ jobs:
           VERSION=${{ github.ref_name }}
           echo "VERSION=${VERSION:1}" >> $GITHUB_ENV
 
-      - name: Generate SHA256 checksums
-        run: |
-          sha256sum *.zip >> SHA256SUMS.txt
-          sha256sum *.tar.xz >> SHA256SUMS.txt
-          cat SHA256SUMS.txt
+      # - name: Generate SHA256 checksums
+      #   run: |
+      #     sha256sum *.zip >> SHA256SUMS.txt
+      #     sha256sum *.tar.xz >> SHA256SUMS.txt
+      #     cat SHA256SUMS.txt
 
       - name: Release
         uses: softprops/action-gh-release@v2
@@ -203,6 +204,4 @@ jobs:
         with:
           tag_name: ${{ steps.ref.outputs.version }}
           files: |
-            SHA256SUMS.txt
             *.zip
-            *.tar.xz

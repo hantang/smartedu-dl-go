@@ -98,8 +98,8 @@ func ParseURLsFromJSON(data []byte) ([]string, error) {
 
 func FetchRawData(name string, local bool) ([]TagItem, map[string]string, map[string]DocPDFData) {
 	dataDir := "data/tchMaterial"
-	tagURL := TchMaterialInfo.tag
-	versionURL := TchMaterialInfo.version
+	tagURL := TchMaterialInfo.Tag
+	versionURL := TchMaterialInfo.Version
 	tagFile := tagURL
 	versionFile := versionURL
 	if local {
