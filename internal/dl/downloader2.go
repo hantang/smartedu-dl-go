@@ -33,10 +33,11 @@ func NewDownloadManager(window fyne.Window, progressBar *widget.ProgressBar, sta
 	}
 }
 
-func (dm *DownloadManager) StartDownload() {
+func (dm *DownloadManager) StartDownload(downloadButton *widget.Button) {
 	if err := os.MkdirAll(dm.downloadsDir, 0755); err != nil {
 		dialog.ShowError(fmt.Errorf("下载目录创建失败: %v", err), dm.window)
 		dm.statusLabel.SetText("创建下载目录失败")
+		downloadButton.Enable()
 		return
 	}
 
@@ -96,6 +97,9 @@ func (dm *DownloadManager) StartDownload() {
 		}
 		dm.statusLabel.SetText(fmt.Sprintf("下载完成: 成功/失败 = %d/%d", successCount, failedCount))
 		dialog.NewInformation("完成", "文件下载完成\n"+statsInfo, dm.window).Show()
+
+		downloadButton.Enable()
+
 	}()
 }
 
