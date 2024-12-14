@@ -36,7 +36,7 @@ func createFormatCheckboxes() []fyne.CanvasObject {
 	return checkboxes
 }
 
-func CreateOperationArea(w fyne.Window, inputData binding.String) *fyne.Container {
+func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData binding.String, optionData binding.StringList) *fyne.Container {
 	// Progress bar
 	progressBar := widget.NewProgressBar()
 	progressLabel := widget.NewLabel("当前无下载内容")
@@ -69,7 +69,10 @@ func CreateOperationArea(w fyne.Window, inputData binding.String) *fyne.Containe
 	})
 
 	// Download button
-	downloadButton := widget.NewButtonWithIcon("下载", theme.DownloadIcon(),func() {
+	downloadButton := widget.NewButtonWithIcon("下载", theme.DownloadIcon(), func() {
+		filteredURLs := []string{}
+		var urlList []string
+
 		if pathEntry.Text == "" {
 			downloadPath = path.Join(defaultPath, "Downloads")
 		}
@@ -78,26 +81,45 @@ func CreateOperationArea(w fyne.Window, inputData binding.String) *fyne.Containe
 			dialog.NewInformation("警告", "下载目录为空，请选择", w).Show()
 			return
 		}
-		// 从 urlInput 获取输入内容
-		urlContent, err := inputData.Get()
-		if err != nil {
-			dialog.NewInformation("警告", "获取失败", w).Show()
-			return
+
+		currentTab := tab.Selected().Text
+		slog.Debug(fmt.Sprintf("current tab = %v", currentTab))
+		if currentTab == dl.TAB_NAMES[0] {
+			// 从 urlInput 获取输入内容
+			urlContent, err := inputData.Get()
+			if err != nil {
+				dialog.ShowError(err, w)
+				return
+			}
+			urlContent = strings.TrimSpace(urlContent)
+			if urlContent == "" {
+				dialog.NewInformation("警告", "请输入 URL，数据不能为空", w).Show()
+				return
+			}
+			urlList = strings.Split(urlContent, "\n")
+		} else {
+			options, err := optionData.Get()
+			if err != nil {
+				dialog.ShowError(err, w)
+				return
+			}
+			if len(options) != 0 {
+				dialog.NewInformation("警告", "至少选择1个多选框", w).Show()
+				return
+			}
+			urlList = options
 		}
-		urlContent = strings.TrimSpace(urlContent)
-		if urlContent == "" {
-			dialog.NewInformation("警告", "请输入 URL，数据不能为空", w).Show()
-			return
-		}
-		urlList := strings.Split(urlContent, "\n")
-		filteredURLs := []string{}
 		for _, link := range urlList {
 			if dl.ValidURL(link) {
 				filteredURLs = append(filteredURLs, link)
 			}
 		}
 		if len(filteredURLs) == 0 {
-			dialog.NewInformation("警告", "请输入有效的 URL", w).Show()
+			info := "请右侧下拉框中选择教材，再从左侧多选框选择课本"
+			if currentTab == dl.TAB_NAMES[0] {
+				info = "请在上方的输入框输入有效的 URL"
+			}
+			dialog.NewInformation("警告", info, w).Show()
 			return
 		}
 		slog.Info(fmt.Sprintf("filteredURLs count = %d", len(filteredURLs)))
