@@ -125,7 +125,10 @@ func FetchRawData(name string, local bool) ([]TagItem, map[string]string, map[st
 
 	dataList := [][]byte{}
 	for _, url := range urls {
-		var tmpFile = path.Join(dataDir, path.Base(url))
+		tmpFile := url
+		if local {
+			tmpFile = path.Join(dataDir, path.Base(url))
+		}
 		data, err := fetchJSONFile(tmpFile)
 		if err != nil {
 			continue

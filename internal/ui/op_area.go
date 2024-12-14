@@ -69,8 +69,9 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 	})
 
 	// Download button
-	downloadButton := widget.NewButtonWithIcon("下载", theme.DownloadIcon(), func() {
-
+	downloadButton := widget.NewButtonWithIcon("下载", theme.DownloadIcon(), nil)
+	downloadButton.OnTapped = func() {
+		downloadButton.Disable() // 下载进行中禁止再次点击
 		random := true
 		var urlList []string
 
@@ -155,8 +156,8 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 
 		// 下载任务 更新进度条
 		downloadManager := dl.NewDownloadManager(w, progressBar, progressLabel, downloadPath, resourceURLs)
-		downloadManager.StartDownload()
-	})
+		downloadManager.StartDownload(downloadButton)
+	}
 
 	separator := widget.NewSeparator()
 	return container.NewVBox(
