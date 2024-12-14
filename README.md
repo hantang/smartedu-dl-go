@@ -1,22 +1,41 @@
 # smartedu-dl (`go`)
 
-> 智慧教育平台资源下载工具（`go`实现版，仅基于 fyne 框架 GUI 版本，正在进行中）
+![build](https://github.com/hantang/smartedu-dl-go/actions/workflows/release.yml/badge.svg)
+![GitHub Tag](https://img.shields.io/github/v/tag/hantang/smartedu-dl-go)
+
+> 智慧教育平台资源下载工具（`go`实现版，基于 fyne 框架 GUI 版本）
 
 ## 📝 功能说明
 
 主要支持`smartedu.cn`教材、课件（PDF 格式）下载存储。
 
-### 更新
+### ⚡️ 更新
 
 - [x] 链接输入列表下载
-- [ ] 教材查询列表下载
+- [x] 教材查询列表下载
 
-### 截图
+### 🖥️ 截图
 
-| 平台  | 暗黑                     | 明亮                      |
-| ----- | ------------------------ | ------------------------- |
-| macos | ![](images/mac-dark.png) | ![](images/mac-light.png) |
+| 平台  | 页面     | 暗黑                       | 明亮                        |
+| ----- | -------- | -------------------------- | --------------------------- |
+| macos | 输入链接 | ![](images/mac-dark2a.png) | ![](images/mac-light2a.png) |
+|       | 教材列表 | ![](images/mac-dark2b.png) | ![](images/mac-light2b.png) |
 
-## 相关项目
+## 👷 开发
 
-- [smartedu-dl](https://github.com/hantang/smartedu-dl)
+```shell
+# go语言开发环境
+
+go mod tidy
+go run main
+```
+
+## 🌐 相关项目
+
+- 旧版本（python）
+  - [hantang/smartedu-dl](https://github.com/hantang/smartedu-dl)
+
+- 相关参考
+  - [happycola233/tchMaterial-parser](https://github.com/happycola233/tchMaterial-parser)
+  - [52beijixing/smartedu-download](https://github.com/52beijixing/smartedu-download)
+  - 图标修改自：<https://www.smartedu.cn/>
