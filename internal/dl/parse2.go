@@ -142,9 +142,6 @@ func FetchRawData(name string, local bool) ([]TagItem, map[string]string, map[st
 		tagItems = tagBase.Hierarchies[0].Children
 	}
 
-	slog.Debug(fmt.Sprintf("tagMap: %d", len(tagMap)))
-	slog.Debug(fmt.Sprintf("docPDFMap: %d", len(docPDFMap)))
-
 	return tagItems, tagMap, docPDFMap
 }
 
@@ -153,7 +150,7 @@ func Query(tagItem TagItem, docPDFMap map[string]DocPDFData) (string, []string, 
 	optionNames := []string{}
 
 	hierarchies := tagItem.Hierarchies
-	if len(hierarchies) == 0 {
+	if hierarchies == nil {
 		return "", optionNames, optionIDs, nil
 	}
 
@@ -177,8 +174,8 @@ func Query(tagItem TagItem, docPDFMap map[string]DocPDFData) (string, []string, 
 		}
 	}
 
-	slog.Debug("Title: " + title)
-	slog.Debug("==> OptionNames: " + strings.Join(optionNames, ", "))
+	// slog.Debug("Title: " + title)
+	// slog.Debug("==> OptionNames: " + strings.Join(optionNames, ", "))
 	// slog.Info("optionIDs: " + strings.Join(optionIDs, ", "))
 	return title, optionNames, optionIDs, children
 }
