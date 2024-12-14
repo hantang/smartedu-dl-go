@@ -104,27 +104,13 @@ func createCheckboxes(left *fyne.Container, optionNames []string, optionIDs []st
 }
 
 func initRightPart(w fyne.Window, left *fyne.Container, optionData binding.StringList, local bool) *fyne.Container {
-	var tabItemsHistory []dl.TagItem // 计算当前tag层级状态
+	// var tabItemsHistory []dl.TagItem // 计算当前tag层级状态
 	// right part: comboboxes for categories
 	comboboxContainer := container.NewVBox()
 	queryButton := widget.NewButtonWithIcon("查询", theme.SearchIcon(), nil)
 	infoLabel := widget.NewLabel("点击查询加载教材信息")
 
-	queryButton.OnTapped = func() {
-		infoLabel.SetText("加载中...")
-		tagItems, _, docPDFMap := dl.FetchRawData("", local)
-		tabItemsHistory = []dl.TagItem{tagItems[0]}
-
-		if tabItemsHistory != nil {
-			infoLabel.SetText("请选择教材")
-			slog.Debug("加载数组" + fmt.Sprintf("tabItemsHistory = %d", len(tabItemsHistory)))
-			queryButton.SetText("重置")
-			createComboboxes(left, comboboxContainer, 0, optionData, docPDFMap, tabItemsHistory)
-		} else {
-			infoLabel.SetText("教材加载失败，稍后重试")
-			dialog.ShowError(fmt.Errorf("数据初始化失败"), w)
-		}
-	}
+	queryButton.Disable()
 
 	bottom := container.NewVBox(widget.NewSeparator(), container.NewCenter(queryButton))
 	right := container.NewBorder(infoLabel, bottom, nil, nil, comboboxContainer)

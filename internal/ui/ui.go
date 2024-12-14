@@ -42,8 +42,8 @@ func InitUI() {
 	inputData := binding.NewString()
 	optionData := binding.NewStringList()
 	tabContainer := container.NewAppTabs(
-		container.NewTabItemWithIcon(dl.TAB_NAMES[1], theme.GridIcon(), CreateOptionsTab(w, optionData)),
 		container.NewTabItemWithIcon(dl.TAB_NAMES[0], theme.DocumentIcon(), CreateInputTab(w, inputData)),
+		container.NewTabItemWithIcon(dl.TAB_NAMES[1], theme.GridIcon(), CreateOptionsTab(w, optionData)),
 	)
 
 	// Bottom operation area
