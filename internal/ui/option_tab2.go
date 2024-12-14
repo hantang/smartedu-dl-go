@@ -48,7 +48,7 @@ func createComboboxes(left *fyne.Container, comboboxContainer *fyne.Container, i
 
 	cleanData(left, comboboxContainer, index, optionData)
 	tagItem := tabItemsHistory[index]
-	title, optionNames, optionIDs, children := dl.Query(tagItem, docPDFMap)
+	title, optionNames, _, children := dl.Query(tagItem, docPDFMap)
 	if len(optionNames) > 0 {
 		if len(children) > 0 {
 			label := widget.NewLabel(title)
