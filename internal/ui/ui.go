@@ -3,7 +3,7 @@ package ui
 import (
 	"image/color"
 
-	"fyne.io/fyne/v2"
+	// "fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
@@ -42,8 +42,8 @@ func InitUI() {
 	inputData := binding.NewString()
 	optionData := binding.NewStringList()
 	tabContainer := container.NewAppTabs(
-		container.NewTabItemWithIcon(dl.TAB_NAMES[0], theme.DocumentIcon(), CreateInputTab(inputData)),
-		container.NewTabItemWithIcon(dl.TAB_NAMES[1], theme.GridIcon(), CreateOptionsTab(optionData)),
+		container.NewTabItemWithIcon(dl.TAB_NAMES[1], theme.GridIcon(), CreateOptionsTab(w, optionData)),
+		container.NewTabItemWithIcon(dl.TAB_NAMES[0], theme.DocumentIcon(), CreateInputTab(w, inputData)),
 	)
 
 	// Bottom operation area
@@ -51,6 +51,6 @@ func InitUI() {
 
 	content := container.NewBorder(toolbar, operationArea, nil, nil, tabContainer)
 	w.SetContent(content)
-	w.Resize(fyne.NewSize(600, 400))
+	// w.Resize(fyne.NewSize(600, 400))
 	w.ShowAndRun()
 }

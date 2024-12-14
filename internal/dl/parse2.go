@@ -160,7 +160,7 @@ func Query(tagItem TagItem, docPDFMap map[string]DocPDFData) (string, []string, 
 
 	if len(children) > 0 {
 		for _, child := range children {
-			slog.Debug(fmt.Sprintf("child name = %s, id = %s", child.TagName, child.TagID))
+			// slog.Debug(fmt.Sprintf("child name = %s, id = %s", child.TagName, child.TagID))
 			optionNames = append(optionNames, child.TagName)
 			optionIDs = append(optionIDs, child.TagID)
 		}
@@ -174,8 +174,19 @@ func Query(tagItem TagItem, docPDFMap map[string]DocPDFData) (string, []string, 
 		}
 	}
 
-	slog.Info("Title: " + title)
-	slog.Info("OptionNames: " + strings.Join(optionNames, ", "))
-	slog.Info("optionIDs: " + strings.Join(optionIDs, ", "))
+	slog.Debug("Title: " + title)
+	slog.Debug("==> OptionNames: " + strings.Join(optionNames, ", "))
+	// slog.Info("optionIDs: " + strings.Join(optionIDs, ", "))
 	return title, optionNames, optionIDs, children
+}
+
+func GenerateURLFromID(bookIdList []string) []string {
+	// book_id转化成URL
+	// name := "/tchMaterial/detail"
+	example_url := TchMaterialInfo.detail
+	urls := []string{}
+	for _, book_id := range bookIdList {
+		urls = append(urls, fmt.Sprintf(example_url, book_id))
+	}
+	return urls
 }

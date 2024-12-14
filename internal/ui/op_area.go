@@ -70,7 +70,8 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 
 	// Download button
 	downloadButton := widget.NewButtonWithIcon("下载", theme.DownloadIcon(), func() {
-		filteredURLs := []string{}
+
+		random := true
 		var urlList []string
 
 		if pathEntry.Text == "" {
@@ -97,18 +98,23 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 				return
 			}
 			urlList = strings.Split(urlContent, "\n")
+
 		} else {
-			options, err := optionData.Get()
+			bookIdList, err := optionData.Get()
+			slog.Debug(fmt.Sprintf("op: bookIdList = %v, err = %v", bookIdList, err))
 			if err != nil {
 				dialog.ShowError(err, w)
 				return
 			}
-			if len(options) != 0 {
+			if len(bookIdList) == 0 {
 				dialog.NewInformation("警告", "至少选择1个多选框", w).Show()
 				return
 			}
-			urlList = options
+			// urlList =
+			urlList = dl.GenerateURLFromID(bookIdList)
+			slog.Debug(fmt.Sprintf("urlList count = %d\n%v", len(urlList), urlList))
 		}
+		filteredURLs := []string{}
 		for _, link := range urlList {
 			if dl.ValidURL(link) {
 				filteredURLs = append(filteredURLs, link)
@@ -128,7 +134,6 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 		var formatList []string
 		for i, checkbox := range checkboxes {
 			if checkbox.(*widget.Check).Checked {
-				// slog.Debug("format", FORMAT_LIST[i].suffix, checkbox.(*widget.Check).Text)
 				formatList = append(formatList, dl.FORMAT_LIST[i].Suffix)
 			}
 		}
@@ -140,7 +145,7 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 		slog.Info(fmt.Sprintf("formatList count = %d", len(formatList)))
 		slog.Debug(fmt.Sprintf("formatList =\n %v", formatList))
 
-		resourceURLs := dl.ExtractResources(filteredURLs, formatList, true)
+		resourceURLs := dl.ExtractResources(filteredURLs, formatList, random)
 		progressLabel.SetText(fmt.Sprintf("共解析到%d个资源", len(resourceURLs)))
 
 		if len(resourceURLs) == 0 {

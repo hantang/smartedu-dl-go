@@ -6,12 +6,12 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
-
-func CreateInputTab(inputData binding.String) *fyne.Container {
+func CreateInputTab(w fyne.Window, inputData binding.String) *fyne.Container {
 	// Multi-line text input for URL
 	urlInput := widget.NewMultiLineEntry()
 	urlInput.SetPlaceHolder("输入 smart.edu 资源链接")
@@ -28,6 +28,7 @@ func CreateInputTab(inputData binding.String) *fyne.Container {
 		urlInput.SetText("")
 		if err := inputData.Set(""); err != nil {
 			slog.Error("清空失败", "error", err)
+			dialog.ShowError(err, w)
 		}
 	})
 
@@ -39,6 +40,7 @@ func CreateInputTab(inputData binding.String) *fyne.Container {
 
 	// Create label
 	bottom := container.NewVBox(container.NewCenter(clearButton),
+		widget.NewSeparator(),
 		container.NewHBox(widget.NewLabel(""), widget.NewLabel(info)))
 	return container.NewBorder(nil, bottom, nil, nil, urlInput)
 }
