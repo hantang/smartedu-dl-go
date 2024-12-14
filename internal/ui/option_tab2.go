@@ -3,7 +3,6 @@ package ui
 import (
 	"fmt"
 	"log/slog"
-	"slices"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -54,11 +53,6 @@ func createComboboxes(left *fyne.Container, comboboxContainer *fyne.Container, i
 			label := widget.NewLabel(title)
 			combobox := widget.NewSelect(optionNames, func(selected string) {
 				// 创建下一个下拉框
-				optIndex := slices.Index(optionNames, selected)
-				childItem := children[optIndex]
-				tabItemsHistory = append(tabItemsHistory[:index+1], childItem)
-
-				createComboboxes(left, comboboxContainer, index+1, optionData, docPDFMap, tabItemsHistory)
 			})
 			comboboxContainer.Add(container.NewBorder(nil, nil, label, nil, combobox))
 		} else {
