@@ -96,48 +96,58 @@ func ParseURLsFromJSON(data []byte) ([]string, error) {
 	}
 }
 
-func FetchRawData(name string, local bool) ([]TagItem, map[string]string, map[string]DocPDFData) {
+func ReadRawData(name string, local bool) ([]byte, [][]byte) {
 	dataDir := "data/tchMaterial"
 	tagURL := TchMaterialInfo.Tag
 	versionURL := TchMaterialInfo.Version
-	tagFile := tagURL
-	versionFile := versionURL
+
+	var tagData []byte
+	dataList := [][]byte{}
 	if local {
-		tagFile = path.Join(dataDir, path.Base(tagURL))
-		versionFile = path.Join(dataDir, path.Base(versionURL))
+		// 使用本地文件
+		tagURL = path.Join(dataDir, path.Base(tagURL))
+		versionURL = path.Join(dataDir, path.Base(versionURL))
 	}
 
-	var tagItems []TagItem
-	tagData, err := fetchJSONFile(tagFile)
+	tagData, err := fetchJSONFile(tagURL)
 	if err != nil {
-		return tagItems, nil, nil
+		return tagData, dataList
 	}
 
-	versionData, err := fetchJSONFile(versionFile)
+	versionData, err := fetchJSONFile(versionURL)
 	if err != nil {
-		return tagItems, nil, nil
+		return tagData, dataList
 	}
 
 	urls, err := ParseURLsFromJSON(versionData)
 	if err != nil {
-		return tagItems, nil, nil
+		return tagData, dataList
 	}
 
-	dataList := [][]byte{}
 	for _, url := range urls {
-		tmpFile := url
+		dataURL := url
 		if local {
-			tmpFile = path.Join(dataDir, path.Base(url))
+			dataURL = path.Join(dataDir, path.Base(url))
 		}
-		data, err := fetchJSONFile(tmpFile)
+		data, err := fetchJSONFile(dataURL)
 		if err != nil {
 			continue
 		}
 		dataList = append(dataList, data)
 	}
+	return tagData, dataList
 
-	tagMap, docPDFMap := ParseDataList(dataList)
+}
+
+func FetchRawData(name string, local bool) ([]TagItem, map[string]string, map[string]DocPDFData) {
+	var tagItems []TagItem
+	tagData, dataList := ReadRawData(name, local)
+	if tagData == nil || len(dataList) == 0 {
+		return tagItems, nil, nil
+	}
+
 	tagBase := ParseHierarchies(tagData)
+	tagMap, docPDFMap := ParseDataList(dataList)
 	if len(tagBase.Hierarchies) > 0 && len(tagBase.Hierarchies[0].Children) > 0 {
 		tagItems = tagBase.Hierarchies[0].Children
 	}
