@@ -124,6 +124,25 @@ type DocPDFData struct {
 	ID      string
 	Title   string
 	TagPath string
+	TagID   string
+}
+
+// 教材层级结构
+type BookItem struct {
+	Level    int
+	Name     string // hierarchy_name
+	TagID    string
+	TagName  string
+	BookID   string
+	BookName string
+	IsBook   bool
+	Children []BookItem
+}
+
+// 下拉框/多选框
+type BookOption struct {
+	OptionID   string
+	OptionName string
 }
 
 // JSON数据解析

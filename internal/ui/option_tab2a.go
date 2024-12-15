@@ -20,13 +20,15 @@ var (
 	checkGroup     *widget.CheckGroup
 	selectButton   *widget.Button
 	deselectButton *widget.Button
+	labelArray     []*widget.Label
+	comboboxArray  []*widget.Select
 )
 
 func cleanData(index int, optionData binding.StringList, labelArray []*widget.Label, comboboxArray []*widget.Select, placeholders []string) {
 	// Clear data
 	optionData.Set(nil)
 
-	statsLabel.SetText("")
+	statsLabel.SetText("课本")
 	checkGroup.Options = []string{}
 	checkGroup.SetSelected([]string{})
 	selectButton.OnTapped = nil
@@ -36,7 +38,7 @@ func cleanData(index int, optionData binding.StringList, labelArray []*widget.La
 	selectButton.Disable()
 	deselectButton.Disable()
 
-	if (index < 0) || (index >= len(labelArray)) {
+	if index < 0 {
 		return
 	}
 	for i := index; i < len(labelArray); i++ {
@@ -48,20 +50,24 @@ func cleanData(index int, optionData binding.StringList, labelArray []*widget.La
 	}
 }
 
-func updateComboboxes(index int, optionData binding.StringList,
-	w fyne.Window, labelArray []*widget.Label, comboboxArray []*widget.Select,
-	placeholders []string, docPDFMap map[string]dl.DocPDFData, tabItemsHistory []dl.TagItem) {
+func updateComboboxes(index int, optionData binding.StringList, w fyne.Window,
+	placeholders []string, bookItemsHistory []dl.BookItem) {
+	// 改成固定数量下拉框
 
-	if index < 0 || index >= len(labelArray) {
+	if index < 0 {
 		slog.Debug(fmt.Sprintf("index = %d, labelArray = %d", index, len(labelArray)))
 		return
 	}
 
 	cleanData(index, optionData, labelArray, comboboxArray, placeholders)
-	title, optionNames, optionIDs, children := dl.Query(tabItemsHistory[index], docPDFMap)
-	if len(optionNames) == 0 {
+	title, bookOptions, children := dl.Query2(bookItemsHistory[index])
+	if len(bookOptions) == 0 {
 		dialog.ShowError(fmt.Errorf("数据查询为空"), w)
 		return
+	}
+	optionNames := []string{}
+	for _, option := range bookOptions {
+		optionNames = append(optionNames, option.OptionName)
 	}
 	if len(children) > 0 {
 		labelArray[index].SetText(fmt.Sprintf("%s〖%s〗", placeholders[index], title))
@@ -70,24 +76,24 @@ func updateComboboxes(index int, optionData binding.StringList,
 		comboboxArray[index].OnChanged = func(selected string) {
 			// 创建下一个下拉框
 			optIndex := slices.Index(optionNames, selected)
-			tabItemsHistory[index+1] = children[optIndex]
-			updateComboboxes(index+1, optionData, w, labelArray[:], comboboxArray[:], placeholders, docPDFMap, tabItemsHistory)
+			bookItemsHistory[index+1] = children[optIndex]
+			updateComboboxes(index+1, optionData, w, placeholders, bookItemsHistory)
 		}
 		comboboxArray[index].Enable()
 	} else {
 		// 最后一层，创建复选框
-		createCheckboxes(optionData, optionNames, optionIDs)
+		createCheckboxes(optionData, bookOptions)
 	}
 }
 
-func createCheckboxes(optionData binding.StringList, optionNames []string, optionIDs []string) {
+func createCheckboxes(optionData binding.StringList, bookOptions []dl.BookOption) {
 	// left part: checkboxes for book(PDF)
 	options := []string{}
 	optionMap := map[string]string{}
-	for i, name := range optionNames {
-		name2 := fmt.Sprintf("%d. 《%s》", i+1, name)
+	for i, opt := range bookOptions {
+		name2 := fmt.Sprintf("%d. %s", i+1, opt.OptionName)
 		options = append(options, name2)
-		optionMap[name2] = optionIDs[i]
+		optionMap[name2] = opt.OptionID
 	}
 
 	optionData.Set(nil)
@@ -113,15 +119,14 @@ func createCheckboxes(optionData binding.StringList, optionNames []string, optio
 	deselectButton.Enable()
 }
 
-func initRightPart(w fyne.Window, optionData binding.StringList, local bool) *fyne.Container {
+func initRightPart(w fyne.Window, optionData binding.StringList, local bool, total int) *fyne.Container {
 	// right part: comboboxes for categories
-	total := 5 // TODO
-	labelArray := make([]*widget.Label, total)
-	comboboxArray := make([]*widget.Select, total)
+	labelArray = make([]*widget.Label, total)
+	comboboxArray = make([]*widget.Select, total)
 	comboContainers := make([]fyne.CanvasObject, total)
 
-	var docPDFMap map[string]dl.DocPDFData
-	tabItemsHistory := make([]dl.TagItem, total+1)
+	initTabData := false
+	bookItemsHistory := make([]dl.BookItem, total+1)
 	placeholders := []string{"㊀", "㊁", "㊂", "㊃", "㊄", "㊅", "㊆", "㊇", "㊈", "㊉"}
 
 	for i := 0; i < len(labelArray); i++ {
@@ -138,17 +143,18 @@ func initRightPart(w fyne.Window, optionData binding.StringList, local bool) *fy
 		infoLabel.SetText("加载中...")
 		index := 0
 
-		if docPDFMap == nil {
-			tagItems, _, tmpDocPDFMap := dl.FetchRawData("", local)
-			tabItemsHistory[index] = tagItems[index]
-			docPDFMap = tmpDocPDFMap
+		if !initTabData {
+			bookBase := dl.FetchRawData2("", local)
+			if len(bookBase.Children) > 0 {
+				bookItemsHistory[index] = bookBase.Children[index]
+				initTabData = true
+			}
 		}
-		if docPDFMap != nil {
-			slog.Debug(fmt.Sprintf("docPDFMap = %d", len(docPDFMap)))
+		if initTabData {
 			infoLabel.SetText("请选择教材")
 			queryButton.SetText("重置")
 
-			updateComboboxes(index, optionData, w, labelArray[:], comboboxArray[:], placeholders, docPDFMap, tabItemsHistory)
+			updateComboboxes(index, optionData, w, placeholders, bookItemsHistory)
 		} else {
 			infoLabel.SetText("教材加载失败，稍后重试")
 			dialog.ShowError(fmt.Errorf("数据初始化失败"), w)
@@ -162,7 +168,10 @@ func initRightPart(w fyne.Window, optionData binding.StringList, local bool) *fy
 
 func CreateOptionsTab(w fyne.Window, optionData binding.StringList) *fyne.Container {
 	local := false // 是否使用本地数据
-	statsLabel = widget.NewLabel("")
+	total := 5     // TODO 层级（下拉框）数量
+
+	// 左侧多选框
+	statsLabel = widget.NewLabel("课本")
 	checkGroup = widget.NewCheckGroup(nil, nil)
 
 	selectButton = widget.NewButtonWithIcon("全选", theme.ConfirmIcon(), nil)
@@ -174,7 +183,7 @@ func CreateOptionsTab(w fyne.Window, optionData binding.StringList) *fyne.Contai
 	bottom := container.NewVBox(widget.NewSeparator(), buttonContainer)
 	left := container.NewBorder(statsLabel, bottom, nil, nil, checkGroup)
 
-	right := initRightPart(w, optionData, local)
+	right := initRightPart(w, optionData, local, total)
 
 	return container.NewBorder(nil, nil, nil, nil, container.NewHSplit(left, right))
 }

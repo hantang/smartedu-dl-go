@@ -9,14 +9,15 @@ import (
 	"strings"
 )
 
-func ParseData(data []byte) (map[string]string, map[string]DocPDFData) {
+func ParseData(data []byte) (map[string]string, map[string]DocPDFData, []DocPDFData) {
 	var DocItemList []DocResourceItem
 	if err := json.Unmarshal(data, &DocItemList); err != nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	tagMap := map[string]string{}
 	docPDFMap := map[string]DocPDFData{}
+	docPDFList := []DocPDFData{}
 
 	for _, item := range DocItemList {
 		for _, tag := range item.TagList {
@@ -26,23 +27,28 @@ func ParseData(data []byte) (map[string]string, map[string]DocPDFData) {
 		for _, tagPath := range item.TagPaths {
 			parts := strings.Split(tagPath, "/")
 			tagID := parts[len(parts)-1]
-
-			docPDFMap[tagID] = DocPDFData{
+			tagData := DocPDFData{
 				ID:      item.ID,
 				Title:   item.Title,
 				TagPath: tagPath,
+				TagID:   tagID,
 			}
+
+			docPDFMap[tagID] = tagData
+			docPDFList = append(docPDFList, tagData)
 		}
 	}
 
-	return tagMap, docPDFMap
+	return tagMap, docPDFMap, docPDFList
 }
 
-func ParseDataList(dataList [][]byte) (map[string]string, map[string]DocPDFData) {
+func ParseDataList(dataList [][]byte) (map[string]string, map[string]DocPDFData, []DocPDFData) {
 	tagMap := map[string]string{}
 	docPDFMap := map[string]DocPDFData{}
+	docPDFList := []DocPDFData{}
+
 	for _, data := range dataList {
-		partTagMap, partDocPDFMap := ParseData(data)
+		partTagMap, partDocPDFMap, partDocPDFList := ParseData(data)
 
 		for k, v := range partTagMap {
 			tagMap[k] = v
@@ -50,8 +56,10 @@ func ParseDataList(dataList [][]byte) (map[string]string, map[string]DocPDFData)
 		for k, v := range partDocPDFMap {
 			docPDFMap[k] = v
 		}
+		docPDFList = append(docPDFList, partDocPDFList...)
 	}
-	return tagMap, docPDFMap
+
+	return tagMap, docPDFMap, docPDFList
 }
 
 func ParseHierarchies(data []byte) TagBase {
@@ -147,7 +155,7 @@ func FetchRawData(name string, local bool) ([]TagItem, map[string]string, map[st
 	}
 
 	tagBase := ParseHierarchies(tagData)
-	tagMap, docPDFMap := ParseDataList(dataList)
+	tagMap, docPDFMap, _ := ParseDataList(dataList)
 	if len(tagBase.Hierarchies) > 0 && len(tagBase.Hierarchies[0].Children) > 0 {
 		tagItems = tagBase.Hierarchies[0].Children
 	}
