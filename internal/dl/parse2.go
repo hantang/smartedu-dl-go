@@ -151,7 +151,11 @@ func Query(tagItem TagItem, docPDFMap map[string]DocPDFData) (string, []string, 
 
 	hierarchies := tagItem.Hierarchies
 	if hierarchies == nil {
-		return "", optionNames, optionIDs, nil
+		if val, ok := docPDFMap[tagItem.TagID]; ok {
+			optionNames = append(optionNames, val.Title)
+			optionIDs = append(optionIDs, val.ID)
+		}
+		return tagItem.TagName, optionNames, optionIDs, nil
 	}
 
 	hierarchy := hierarchies[0]
@@ -174,9 +178,6 @@ func Query(tagItem TagItem, docPDFMap map[string]DocPDFData) (string, []string, 
 		}
 	}
 
-	// slog.Debug("Title: " + title)
-	// slog.Debug("==> OptionNames: " + strings.Join(optionNames, ", "))
-	// slog.Info("optionIDs: " + strings.Join(optionIDs, ", "))
 	return title, optionNames, optionIDs, children
 }
 

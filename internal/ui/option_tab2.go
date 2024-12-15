@@ -108,7 +108,7 @@ func initRightPart(w fyne.Window, left *fyne.Container, optionData binding.Strin
 }
 
 func CreateOptionsTab(w fyne.Window, optionData binding.StringList) *fyne.Container {
-	local := true // 是否使用本地数据
+	local := false // 是否使用本地数据
 	left := container.NewHBox()
 	right := initRightPart(w, left, optionData, local)
 
