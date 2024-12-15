@@ -15,9 +15,26 @@ import (
 	"github.com/hantang/smartedudlgo/internal/dl"
 )
 
+var (
+	statsLabel     *widget.Label
+	checkGroup     *widget.CheckGroup
+	selectButton   *widget.Button
+	deselectButton *widget.Button
+)
+
 func cleanData(index int, optionData binding.StringList, labelArray []*widget.Label, comboboxArray []*widget.Select, placeholders []string) {
 	// Clear data
 	optionData.Set(nil)
+
+	statsLabel.SetText("")
+	checkGroup.Options = []string{}
+	checkGroup.SetSelected([]string{})
+	selectButton.OnTapped = nil
+	deselectButton.OnTapped = nil
+
+	checkGroup.Disable()
+	selectButton.Disable()
+	deselectButton.Disable()
 
 	if (index < 0) || (index >= len(labelArray)) {
 		return
@@ -28,8 +45,6 @@ func cleanData(index int, optionData binding.StringList, labelArray []*widget.La
 		comboboxArray[i].SetSelected("")
 		comboboxArray[i].OnChanged = nil
 		comboboxArray[i].Disable()
-		// comboboxArray[i].Refresh()
-		// labelArray[i].Refresh()
 	}
 }
 
@@ -43,7 +58,7 @@ func updateComboboxes(index int, optionData binding.StringList,
 	}
 
 	cleanData(index, optionData, labelArray, comboboxArray, placeholders)
-	title, optionNames, _, children := dl.Query(tabItemsHistory[index], docPDFMap)
+	title, optionNames, optionIDs, children := dl.Query(tabItemsHistory[index], docPDFMap)
 	if len(optionNames) == 0 {
 		dialog.ShowError(fmt.Errorf("数据查询为空"), w)
 		return
@@ -61,17 +76,51 @@ func updateComboboxes(index int, optionData binding.StringList,
 		comboboxArray[index].Enable()
 	} else {
 		// 最后一层，创建复选框
-		// createCheckboxes(left, optionNames, optionIDs, optionData)
+		createCheckboxes(optionData, optionNames, optionIDs)
 	}
 }
 
-func initRightPart(w fyne.Window, left *fyne.Container, optionData binding.StringList, local bool) *fyne.Container {
+func createCheckboxes(optionData binding.StringList, optionNames []string, optionIDs []string) {
+	// left part: checkboxes for book(PDF)
+	options := []string{}
+	optionMap := map[string]string{}
+	for i, name := range optionNames {
+		name2 := fmt.Sprintf("%d. 《%s》", i+1, name)
+		options = append(options, name2)
+		optionMap[name2] = optionIDs[i]
+	}
+
+	optionData.Set(nil)
+	statsLabel.SetText(fmt.Sprintf("课本（共%d项）：", len(options)))
+	checkGroup.Options = options
+	checkGroup.Selected = []string{}
+	checkGroup.OnChanged = func(items []string) {
+		optionData.Set(nil)
+		for _, item := range items {
+			optionData.Append(optionMap[item])
+		}
+		statsLabel.SetText(fmt.Sprintf("课本（共%d项，已选%d项）：", len(options), len(items)))
+	}
+	selectButton.OnTapped = func() {
+		checkGroup.SetSelected(options)
+	}
+	deselectButton.OnTapped = func() {
+		checkGroup.SetSelected(nil)
+	}
+
+	checkGroup.Enable()
+	selectButton.Enable()
+	deselectButton.Enable()
+}
+
+func initRightPart(w fyne.Window, optionData binding.StringList, local bool) *fyne.Container {
 	// right part: comboboxes for categories
 	total := 5 // TODO
 	labelArray := make([]*widget.Label, total)
 	comboboxArray := make([]*widget.Select, total)
 	comboContainers := make([]fyne.CanvasObject, total)
 
+	var docPDFMap map[string]dl.DocPDFData
 	tabItemsHistory := make([]dl.TagItem, total+1)
 	placeholders := []string{"㊀", "㊁", "㊂", "㊃", "㊄", "㊅", "㊆", "㊇", "㊈", "㊉"}
 
@@ -87,14 +136,18 @@ func initRightPart(w fyne.Window, left *fyne.Container, optionData binding.Strin
 
 	queryButton.OnTapped = func() {
 		infoLabel.SetText("加载中...")
-		tagItems, _, docPDFMap := dl.FetchRawData("", local)
+		index := 0
+
+		if docPDFMap == nil {
+			tagItems, _, tmpDocPDFMap := dl.FetchRawData("", local)
+			tabItemsHistory[index] = tagItems[index]
+			docPDFMap = tmpDocPDFMap
+		}
 		if docPDFMap != nil {
 			slog.Debug(fmt.Sprintf("docPDFMap = %d", len(docPDFMap)))
-
-			index := 0
 			infoLabel.SetText("请选择教材")
 			queryButton.SetText("重置")
-			tabItemsHistory[index] = tagItems[index]
+
 			updateComboboxes(index, optionData, w, labelArray[:], comboboxArray[:], placeholders, docPDFMap, tabItemsHistory)
 		} else {
 			infoLabel.SetText("教材加载失败，稍后重试")
@@ -109,8 +162,19 @@ func initRightPart(w fyne.Window, left *fyne.Container, optionData binding.Strin
 
 func CreateOptionsTab(w fyne.Window, optionData binding.StringList) *fyne.Container {
 	local := false // 是否使用本地数据
-	left := container.NewHBox()
-	right := initRightPart(w, left, optionData, local)
+	statsLabel = widget.NewLabel("")
+	checkGroup = widget.NewCheckGroup(nil, nil)
+
+	selectButton = widget.NewButtonWithIcon("全选", theme.ConfirmIcon(), nil)
+	deselectButton = widget.NewButtonWithIcon("清空", theme.CancelIcon(), nil)
+	selectButton.Disable()
+	deselectButton.Disable()
+
+	buttonContainer := container.NewCenter(container.NewHBox(selectButton, deselectButton))
+	bottom := container.NewVBox(widget.NewSeparator(), buttonContainer)
+	left := container.NewBorder(statsLabel, bottom, nil, nil, checkGroup)
+
+	right := initRightPart(w, optionData, local)
 
 	return container.NewBorder(nil, nil, nil, nil, container.NewHSplit(left, right))
 }
