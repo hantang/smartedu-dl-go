@@ -4,7 +4,7 @@ Website = "https://github.com/hantang/smartedu-dl-go"
   Icon = "icon.png"
   Name = "SmarteduDL"
   ID = "io.github.hantang.smartedudl"
-  Version = "0.1.1"
+  Version = "0.2.2"
   Build = 1
 
 [Release]
