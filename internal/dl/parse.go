@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"slices"
 	"strings"
+	"regexp"
 )
 
 func cleanURL(link string) string {
@@ -136,6 +137,18 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 				randomIndex = rand.Intn(len(tiItem.TiStorages))
 			}
 			link = tiItem.TiStorages[randomIndex]
+			// link ~~去除“-doc-private”~~
+			// => https://r3-ndr.ykt.cbern.com.cn/edu_product/esp/assets/<教材代码>.pkg/pdf.pdf
+			// var materialId = link.split("");
+			re := regexp.MustCompile(`([a-z\d\-]+).pkg`)
+			materialId := re.FindString(link)
+			slog.Debug(fmt.Sprintf("URL = %s / materialId=%s", link, materialId))
+			if len(materialId) == 0 {
+				continue
+			}
+			link = fmt.Sprintf("https://r%d-ndr.ykt.cbern.com.cn/edu_product/esp/assets/%s/pdf.pdf", rune(randomIndex)+1, materialId)
+			slog.Debug(fmt.Sprintf("Update URL = %s", link))
+
 			format = tiItem.TiFormat
 			size = tiItem.TiSize
 			if title == "" {
