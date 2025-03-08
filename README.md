@@ -23,8 +23,11 @@
 
 ### ⚡️ 更新
 
--   [x] 链接输入列表下载(`v0.1.x`)
--   [x] 教材查询列表下载(`v0.2.x`)
+- [x] 链接输入列表下载(`v0.1.x`)
+- [x] 教材查询列表下载(`v0.2.x`)
+    - 支持登录信息配置（devtools/network选择pdf文件找到Request Headers中`x-nd-auth`参数）
+    - 增加日志统计（结果保存在`log-smartedudl.txt`）
+    - 已知问题：部分音频下载可能失败（包括已配置登录信息）；另外，非登录状态部分资源可能下载失败或下载的是旧版教材。
 
 ## 👷 开发
 
@@ -37,10 +40,13 @@ go run main
 
 ## 🌐 相关项目
 
-- 旧版本（python）
+- 旧版（python）
   - [hantang/smartedu-dl](https://github.com/hantang/smartedu-dl)
 
-- 相关参考
+- 类似项目
   - [happycola233/tchMaterial-parser](https://github.com/happycola233/tchMaterial-parser)
   - [52beijixing/smartedu-download](https://github.com/52beijixing/smartedu-download)
-  - 图标修改自：<https://www.smartedu.cn/>
+  - 智慧教育平台电子教材下载器 <https://www.52pojie.cn/thread-1891126-1-1.html>
+  - [cjhdevact/FlyEduDownloader](https://github.com/cjhdevact/FlyEduDownloader)
+
+- 图标：修改自<https://www.smartedu.cn/>
