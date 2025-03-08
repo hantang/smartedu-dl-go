@@ -45,7 +45,11 @@ var RESOURCES_MAP = map[string]ResourceData{
 			// 课本PDF // 限制 contentType=assets_document
 			basic: "https://%s.ykt.cbern.com.cn/zxx/ndrv2/resources/tch_material/details/%s.json",
 			// 备用 旧版本
-			backup: "https://%s.ykt.cbern.com.cn/zxx/ndrs/resources/tch_material/details/%s.json",
+			backup: []string{
+				"https://%s.ykt.cbern.com.cn/zxx/ndrs/special_edu/resources/details/%s.json",
+				"https://%s.ykt.cbern.com.cn/zxx/ndrs/resources/tch_material/details/%s.json",
+				"https://%s.ykt.cbern.com.cn/zxx/ndrs/special_edu/thematic_course/%s/resources/list.json",
+			},
 			// 配套音频
 			audio: "https://%s.ykt.cbern.com.cn/zxx/ndrs/resources/%s/relation_audios.json",
 		},
@@ -94,7 +98,7 @@ type ResourceMetaInfo struct {
 
 type ResourceInfo struct {
 	basic  string
-	backup string
+	backup []string
 	audio  string
 }
 

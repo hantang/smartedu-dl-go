@@ -77,7 +77,6 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 	// Download button
 	downloadButton := widget.NewButtonWithIcon("下载", theme.DownloadIcon(), nil)
 	downloadButton.OnTapped = func() {
-		downloadButton.Disable() // 下载进行中禁止再次点击
 		random := true
 		var urlList []string
 
@@ -140,8 +139,9 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 			dialog.NewInformation("警告", info, w).Show()
 			return
 		}
-		slog.Info(fmt.Sprintf("filteredURLs count = %d", len(filteredURLs)))
 
+		downloadButton.Disable() // 下载进行中禁止再次点击
+		slog.Info(fmt.Sprintf("filteredURLs count = %d", len(filteredURLs)))
 		// 遍历获取勾选状态
 		var formatList []string
 		for i, checkbox := range checkboxes {
@@ -178,6 +178,7 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 
 		if len(resourceURLs) == 0 {
 			dialog.NewError(fmt.Errorf("未解析到有效资源"), w).Show()
+			downloadButton.Enable()
 			return
 		}
 

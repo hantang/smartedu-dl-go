@@ -70,6 +70,10 @@ func parseURL(link string, audio bool, random bool) ([]string, error) {
 
 	configURL := fmt.Sprintf(configInfo.resources.basic, paramDict[serverKey], paramDict[configInfo.params[0]])
 	configURLList = append(configURLList, configURL)
+	for _, backupURL := range configInfo.resources.backup {
+		moreConfigURL := fmt.Sprintf(backupURL, paramDict[serverKey], paramDict[configInfo.params[0]])
+		configURLList = append(configURLList, moreConfigURL)
+	}
 
 	if audio && configInfo.resources.audio != "" {
 		audioURL := fmt.Sprintf(configInfo.resources.audio, paramDict[serverKey], paramDict[configInfo.params[0]])
