@@ -73,6 +73,7 @@ func parseURL(link string, audio bool, random bool) ([]string, error) {
 
 	if audio && configInfo.resources.audio != "" {
 		audioURL := fmt.Sprintf(configInfo.resources.audio, paramDict[serverKey], paramDict[configInfo.params[0]])
+		slog.Debug(fmt.Sprintf("audioURL = %s", audioURL))
 		configURLList = append(configURLList, audioURL)
 	}
 	return configURLList, nil
@@ -89,6 +90,25 @@ func parseURLList(links []string, audio bool, random bool) []string {
 		configURLList = append(configURLList, output...)
 	}
 	return configURLList
+}
+
+func convertURL(rawLink string, randomIndex int) string {
+	// link ~~去除“-doc-private”~~
+	// => https://r3-ndr.ykt.cbern.com.cn/edu_product/esp/assets/<教材代码>.pkg/pdf.pdf
+	slog.Debug(fmt.Sprintf("Raw URL = %s", rawLink))
+	link := rawLink
+	link = regexp.MustCompile(`[^/]+\.pdf$`).ReplaceAllString(link, "pdf.pdf") // 可能是旧版教材
+	link = regexp.MustCompile(`ndr-(doc-)?private`).ReplaceAllString(link, "ndr")
+
+	// re := regexp.MustCompile(`([a-z\d\-]+).pkg`)
+	// materialId := re.FindString(rawLink)
+	// slog.Debug(fmt.Sprintf("URL = %s / materialId=%s", rawLink, materialId))
+	// if len(materialId) == 0 {
+	// 	return ""
+	// }
+	// link := fmt.Sprintf("https://r%d-ndr.ykt.cbern.com.cn/edu_product/esp/assets/%s/pdf.pdf", rune(randomIndex)+1, materialId)
+	slog.Debug(fmt.Sprintf("Update URL = %s", link))
+	return link
 }
 
 func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]LinkData, error) {
@@ -123,6 +143,7 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 			title = fmt.Sprintf("%s-%03d", item.ResourceType, i)
 		}
 		var link string
+		var rawLink string
 		var format string
 		var size int64
 
@@ -136,18 +157,11 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 			if random {
 				randomIndex = rand.Intn(len(tiItem.TiStorages))
 			}
-			link = tiItem.TiStorages[randomIndex]
-			// link ~~去除“-doc-private”~~
-			// => https://r3-ndr.ykt.cbern.com.cn/edu_product/esp/assets/<教材代码>.pkg/pdf.pdf
-			// var materialId = link.split("");
-			re := regexp.MustCompile(`([a-z\d\-]+).pkg`)
-			materialId := re.FindString(link)
-			slog.Debug(fmt.Sprintf("URL = %s / materialId=%s", link, materialId))
-			if len(materialId) == 0 {
+			rawLink = tiItem.TiStorages[randomIndex]
+			link = convertURL(rawLink, randomIndex)
+			if link == "" {
 				continue
 			}
-			link = fmt.Sprintf("https://r%d-ndr.ykt.cbern.com.cn/edu_product/esp/assets/%s/pdf.pdf", rune(randomIndex)+1, materialId)
-			slog.Debug(fmt.Sprintf("Update URL = %s", link))
 
 			format = tiItem.TiFormat
 			size = tiItem.TiSize
@@ -164,6 +178,7 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 				Format: format,
 				Title:  title,
 				URL:    link,
+				RawURL: rawLink,
 				Size:   size,
 			})
 		}

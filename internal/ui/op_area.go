@@ -45,6 +45,12 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 	formatLabel := widget.NewLabelWithStyle("资源类型: ", fyne.TextAlign(fyne.TextAlignLeading), fyne.TextStyle{Bold: true})
 	checkboxes := createFormatCheckboxes()
 
+	// user log info
+	authInfo := ""
+	loginLabel := widget.NewLabelWithStyle("登录信息: ", fyne.TextAlign(fyne.TextAlignLeading), fyne.TextStyle{Bold: true})
+	loginEntry := widget.NewEntry()
+	loginEntry.SetPlaceHolder("如果下载失败或非最新版教材，请在浏览器登录后在DevTools查找X-Nd-Auth值并在此填写，“MAC id=XXX……”")
+
 	// Save path display and button
 	defaultPath, _ := os.UserHomeDir()
 	downloadPath := path.Join(defaultPath, "Downloads")
@@ -83,6 +89,11 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 			dialog.NewInformation("警告", "下载目录为空，请选择", w).Show()
 			return
 		}
+		if loginEntry.Text != "" {
+			authInfo = loginEntry.Text
+		}
+		headers := map[string]string{"x-nd-auth": authInfo}
+		slog.Info(fmt.Sprintf("headers is %v", headers))
 
 		currentTab := tab.Selected().Text
 		slog.Debug(fmt.Sprintf("current tab = %v", currentTab))
@@ -147,7 +158,23 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 		slog.Debug(fmt.Sprintf("formatList =\n %v", formatList))
 
 		resourceURLs := dl.ExtractResources(filteredURLs, formatList, random)
-		progressLabel.SetText(fmt.Sprintf("共解析到%d个资源", len(resourceURLs)))
+		resourceStats := make(map[string]int)
+		formatDict := make(map[string]string)
+		for _, item := range dl.FORMAT_LIST {
+			formatDict[item.Suffix] = item.Name
+		}
+
+		// 遍历统计每个文件类型个数
+		for _, item := range resourceURLs {
+			resourceStats[item.Format]++
+		}
+		var resultStrBuilder strings.Builder
+		for key, value := range resourceStats {
+			resultStrBuilder.WriteString(fmt.Sprintf("%s=%d ", formatDict[key], value))
+		}
+		resultStr := resultStrBuilder.String()
+		progressLabel.SetText(fmt.Sprintf("共解析到%d个资源：%s", len(resourceURLs), resultStr))
+		slog.Info(fmt.Sprintf("共解析到%d个资源：%s", len(resourceURLs), resultStr))
 
 		if len(resourceURLs) == 0 {
 			dialog.NewError(fmt.Errorf("未解析到有效资源"), w).Show()
@@ -156,7 +183,7 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 
 		// 下载任务 更新进度条
 		downloadManager := dl.NewDownloadManager(w, progressBar, progressLabel, downloadPath, resourceURLs)
-		downloadManager.StartDownload(downloadButton)
+		downloadManager.StartDownload(downloadButton, headers)
 	}
 
 	separator := widget.NewSeparator()
@@ -164,6 +191,7 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 		separator,
 		container.NewHBox(formatLabel, container.NewHBox(checkboxes...)),
 		container.NewBorder(nil, nil, pathLabel, container.NewHBox(selectPathButton, downloadButton), pathEntry),
+		container.NewBorder(nil, nil, loginLabel, nil, loginEntry),
 		progressBar, progressLabel,
 	)
 }

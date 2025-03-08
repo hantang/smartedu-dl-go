@@ -51,6 +51,7 @@ var RESOURCES_MAP = map[string]ResourceData{
 		},
 		// 如果 contentType=thematic_course TODO
 		// https://%s.ykt.cbern.com.cn/zxx/ndrs/special_edu/thematic_course/trees/%s.json 不一定有PDF
+		// audio: https://s-file-2.ykt.cbern.com.cn/zxx/ndrs/resources/1bb3e2fe-45a1-2999-e8b4-9fc63d0929bb/relation_audios.json
 	},
 
 	"/syncClassroom/prepare/detail": {
@@ -109,6 +110,7 @@ type LinkData struct {
 	Format string
 	Title  string
 	URL    string
+	RawURL string
 	Size   int64
 }
 
