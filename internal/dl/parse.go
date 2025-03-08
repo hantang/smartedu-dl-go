@@ -6,9 +6,9 @@ import (
 	"log/slog"
 	"math/rand"
 	"net/url"
+	"regexp"
 	"slices"
 	"strings"
-	"regexp"
 )
 
 func cleanURL(link string) string {

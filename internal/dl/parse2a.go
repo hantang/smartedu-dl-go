@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func ParseHierarchies2(level int, tagItem TagItem, tagMap map[string]string, docPDFMap map[string]DocPDFData) BookItem {
+func ParseHierarchies2(level int, tagItem TagItem, tagMap map[string]string) BookItem {
 	var bookItem BookItem
 	hierarchies := tagItem.Hierarchies
 
@@ -17,11 +17,11 @@ func ParseHierarchies2(level int, tagItem TagItem, tagMap map[string]string, doc
 			TagID:   tagItem.TagID,
 			TagName: tagMap[tagItem.TagID],
 		}
-		if val, ok := docPDFMap[tagItem.TagID]; ok {
-			bookItem.IsBook = true
-			bookItem.BookID = val.ID
-			bookItem.BookName = val.Title
-		}
+		// if val, ok := docPDFMap[tagItem.TagID]; ok {
+		// 	bookItem.IsBook = true
+		// 	bookItem.BookID = val.ID
+		// 	bookItem.BookName = val.Title
+		// }
 		return bookItem
 	}
 
@@ -36,24 +36,24 @@ func ParseHierarchies2(level int, tagItem TagItem, tagMap map[string]string, doc
 
 	if len(children) > 0 {
 		for _, child := range children {
-			childBook := ParseHierarchies2(level+1, child, tagMap, docPDFMap)
+			childBook := ParseHierarchies2(level+1, child, tagMap)
 			bookItem.Children = append(bookItem.Children, childBook)
 		}
 	} else {
-		for _, hiddenTagID := range hierarchy.Ext.HiddenTags {
-			if val, ok := docPDFMap[hiddenTagID]; ok {
-				childBook := BookItem{
-					Level:    level + 1,
-					Name:     "-",
-					TagID:    hiddenTagID,
-					TagName:  tagMap[hiddenTagID],
-					IsBook:   true,
-					BookID:   val.ID,
-					BookName: val.Title,
-				}
-				bookItem.Children = append(bookItem.Children, childBook)
-			}
-		}
+		// for _, hiddenTagID := range hierarchy.Ext.HiddenTags {
+		// 	if val, ok := docPDFMap[hiddenTagID]; ok {
+		// 		childBook := BookItem{
+		// 			Level:    level + 1,
+		// 			Name:     "-",
+		// 			TagID:    hiddenTagID,
+		// 			TagName:  tagMap[hiddenTagID],
+		// 			IsBook:   true,
+		// 			BookID:   val.ID,
+		// 			BookName: val.Title,
+		// 		}
+		// 		bookItem.Children = append(bookItem.Children, childBook)
+		// 	}
+		// }
 	}
 	return bookItem
 }
@@ -116,10 +116,10 @@ func FetchRawData2(name string, local bool) BookItem {
 	tagData, dataList := ReadRawData(name, local)
 
 	tagBase := ParseHierarchies(tagData)
-	tagMap, docPDFMap, docPDFList := ParseDataList(dataList)
+	tagMap, _, docPDFList := ParseDataList(dataList)
 
 	if len(tagBase.Hierarchies) > 0 && len(tagBase.Hierarchies[0].Children) > 0 {
-		bookItem := ParseHierarchies2(1, tagBase.Hierarchies[0].Children[0], tagMap, docPDFMap)
+		bookItem := ParseHierarchies2(1, tagBase.Hierarchies[0].Children[0], tagMap)
 		bookItemBase := BookItem{
 			Level:    0,
 			Name:     tagBase.Hierarchies[0].HierarchyName,
@@ -127,7 +127,6 @@ func FetchRawData2(name string, local bool) BookItem {
 			TagID:    tagBase.TagID,
 			Children: []BookItem{bookItem},
 		}
-
 		UpdateHierarchies2(&bookItemBase, tagMap, docPDFList)
 		return bookItemBase
 	}

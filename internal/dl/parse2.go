@@ -34,7 +34,7 @@ func ParseData(data []byte) (map[string]string, map[string]DocPDFData, []DocPDFD
 				TagID:   tagID,
 			}
 
-			docPDFMap[tagID] = tagData
+			docPDFMap[tagID] = tagData // TODO remove 不唯一
 			docPDFList = append(docPDFList, tagData)
 		}
 	}
