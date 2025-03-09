@@ -45,6 +45,9 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 	formatLabel := widget.NewLabelWithStyle("资源类型: ", fyne.TextAlign(fyne.TextAlignLeading), fyne.TextStyle{Bold: true})
 	checkboxes := createFormatCheckboxes()
 
+	// backup links
+	backupCheckbox := widget.NewCheck("备用解析", func(checked bool) {})
+
 	// user log info
 	authInfo := ""
 	loginLabel := widget.NewLabelWithStyle("登录信息: ", fyne.TextAlign(fyne.TextAlignLeading), fyne.TextStyle{Bold: true})
@@ -150,6 +153,11 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 			}
 		}
 
+		var useBackup = false
+		if backupCheckbox.Checked {
+			useBackup = true
+		}
+
 		if len(formatList) == 0 {
 			dialog.NewInformation("警告", "请勾选至少1个资源类型", w).Show()
 			return
@@ -157,7 +165,7 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 		slog.Info(fmt.Sprintf("formatList count = %d", len(formatList)))
 		slog.Debug(fmt.Sprintf("formatList =\n %v", formatList))
 
-		resourceURLs := dl.ExtractResources(filteredURLs, formatList, random)
+		resourceURLs := dl.ExtractResources(filteredURLs, formatList, random, useBackup)
 		resourceStats := make(map[string]int)
 		formatDict := make(map[string]string)
 		for _, item := range dl.FORMAT_LIST {
@@ -192,7 +200,7 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 		separator,
 		container.NewHBox(formatLabel, container.NewHBox(checkboxes...)),
 		container.NewBorder(nil, nil, pathLabel, container.NewHBox(selectPathButton, downloadButton), pathEntry),
-		container.NewBorder(nil, nil, loginLabel, nil, loginEntry),
+		container.NewBorder(nil, nil, loginLabel, backupCheckbox, loginEntry),
 		progressBar, progressLabel,
 	)
 }

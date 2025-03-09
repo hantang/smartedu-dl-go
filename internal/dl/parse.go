@@ -32,7 +32,7 @@ func ValidURL(link string) bool {
 	return true
 }
 
-func parseURL(link string, audio bool, random bool) ([]string, error) {
+func parseURL(link string, audio bool, random bool, useBackup bool) ([]string, error) {
 	// 解析 smartedu.cn 详情页链接，得到json资源链接
 	var configURLList []string
 	parsedURL, err := url.Parse(link)
@@ -70,9 +70,11 @@ func parseURL(link string, audio bool, random bool) ([]string, error) {
 
 	configURL := fmt.Sprintf(configInfo.resources.basic, paramDict[serverKey], paramDict[configInfo.params[0]])
 	configURLList = append(configURLList, configURL)
-	for _, backupURL := range configInfo.resources.backup {
-		moreConfigURL := fmt.Sprintf(backupURL, paramDict[serverKey], paramDict[configInfo.params[0]])
-		configURLList = append(configURLList, moreConfigURL)
+	if useBackup {
+		for _, backupURL := range configInfo.resources.backup {
+			moreConfigURL := fmt.Sprintf(backupURL, paramDict[serverKey], paramDict[configInfo.params[0]])
+			configURLList = append(configURLList, moreConfigURL)
+		}
 	}
 
 	if audio && configInfo.resources.audio != "" {
@@ -83,10 +85,10 @@ func parseURL(link string, audio bool, random bool) ([]string, error) {
 	return configURLList, nil
 }
 
-func parseURLList(links []string, audio bool, random bool) []string {
+func parseURLList(links []string, audio bool, random bool, useBackup bool) []string {
 	var configURLList []string
 	for _, link := range links {
-		output, err := parseURL(link, audio, random)
+		output, err := parseURL(link, audio, random, useBackup)
 		if err != nil {
 			slog.Debug(fmt.Sprintf("parse link error: %v", err))
 			continue
@@ -191,7 +193,7 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 	return result, nil
 }
 
-func ExtractResources(links []string, formatList []string, random bool) []LinkData {
+func ExtractResources(links []string, formatList []string, random bool, useBackup bool) []LinkData {
 	var result []LinkData
 
 	var audio = false
@@ -201,16 +203,16 @@ func ExtractResources(links []string, formatList []string, random bool) []LinkDa
 			break
 		}
 	}
-	slog.Debug(fmt.Sprintf("formats = %v, audio is %v", formatList, audio))
+	slog.Debug(fmt.Sprintf("formats=%v audio=%v random=%v backup=%v", formatList, audio, random, useBackup))
 
-	configURLList := parseURLList(links, audio, random)
+	configURLList := parseURLList(links, audio, random, useBackup)
 	slog.Debug(fmt.Sprintf("configURLList is %v", len(configURLList)))
 
 	for _, url := range configURLList {
 		slog.Debug("config url = " + url)
-		data, err := FetchJsonData(url)
-		if err != nil {
-			slog.Warn(fmt.Sprintf("fetch data error: %v", err))
+		data, err, statusOK := FetchJsonData(url)
+		if err != nil || !statusOK {
+			slog.Warn(fmt.Sprintf("fetch data error: %v / status=%v", err, statusOK))
 			continue
 		}
 		resources, err := parseResourceItems(data, formatList, random)

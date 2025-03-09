@@ -71,14 +71,14 @@ func ParseHierarchies(data []byte) TagBase {
 	return tagBase
 }
 
-func fetchJSONFile(filename string) ([]byte, error) {
+func fetchJSONFile(filename string) ([]byte, error, bool) {
 	slog.Debug("process filename = " + filename)
 	if strings.HasPrefix(filename, "http") {
 		return FetchJsonData(filename)
 	}
 
 	data, err := os.ReadFile(filename)
-	return data, err
+	return data, err, true
 }
 
 func ParseURLsFromJSON(data []byte) ([]string, error) {
@@ -117,13 +117,13 @@ func ReadRawData(name string, local bool) ([]byte, [][]byte) {
 		versionURL = path.Join(dataDir, path.Base(versionURL))
 	}
 
-	tagData, err := fetchJSONFile(tagURL)
-	if err != nil {
+	tagData, err, statusOK := fetchJSONFile(tagURL)
+	if err != nil && statusOK {
 		return tagData, dataList
 	}
 
-	versionData, err := fetchJSONFile(versionURL)
-	if err != nil {
+	versionData, err, statusOK := fetchJSONFile(versionURL)
+	if err != nil && statusOK {
 		return tagData, dataList
 	}
 
@@ -137,8 +137,8 @@ func ReadRawData(name string, local bool) ([]byte, [][]byte) {
 		if local {
 			dataURL = path.Join(dataDir, path.Base(url))
 		}
-		data, err := fetchJSONFile(dataURL)
-		if err != nil {
+		data, err, statusOK := fetchJSONFile(dataURL)
+		if err != nil && statusOK {
 			continue
 		}
 		dataList = append(dataList, data)

@@ -57,15 +57,15 @@ func DownloadFile(url, savePath string) error {
 	return err
 }
 
-func FetchJsonData(url string) ([]byte, error) {
+func FetchJsonData(url string) ([]byte, error, bool) {
 	resp, err := http.Get(url)
 	slog.Debug(fmt.Sprintf("status code %v", resp.StatusCode))
 	if err != nil {
 		fmt.Println("Error fetching JSON data:", err)
-		return nil, err
+		return nil, err, false
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
-	return body, err
+	return body, err, resp.StatusCode == http.StatusOK
 }
