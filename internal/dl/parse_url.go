@@ -106,13 +106,6 @@ func convertURL(rawLink string, randomIndex int) string {
 	link = regexp.MustCompile(`[^/]+\.pdf$`).ReplaceAllString(link, "pdf.pdf") // 可能是旧版教材
 	link = regexp.MustCompile(`ndr-(doc-)?private`).ReplaceAllString(link, "ndr")
 
-	// re := regexp.MustCompile(`([a-z\d\-]+).pkg`)
-	// materialId := re.FindString(rawLink)
-	// slog.Debug(fmt.Sprintf("URL = %s / materialId=%s", rawLink, materialId))
-	// if len(materialId) == 0 {
-	// 	return ""
-	// }
-	// link := fmt.Sprintf("https://r%d-ndr.ykt.cbern.com.cn/edu_product/esp/assets/%s/pdf.pdf", rune(randomIndex)+1, materialId)
 	slog.Debug(fmt.Sprintf("Update URL = %s", link))
 	return link
 }

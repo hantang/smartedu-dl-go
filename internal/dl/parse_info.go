@@ -1,10 +1,161 @@
 package dl
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
+	"path"
 	"strings"
 )
+
+func ParseData(data []byte) (map[string]string, map[string]DocPDFData, []DocPDFData) {
+	var DocItemList []DocResourceItem
+	if err := json.Unmarshal(data, &DocItemList); err != nil {
+		return nil, nil, nil
+	}
+
+	tagMap := map[string]string{}
+	docPDFMap := map[string]DocPDFData{}
+	docPDFList := []DocPDFData{}
+
+	for _, item := range DocItemList {
+		for _, tag := range item.TagList {
+			tagMap[tag.TagID] = tag.TagName
+		}
+
+		for _, tagPath := range item.TagPaths {
+			parts := strings.Split(tagPath, "/")
+			tagID := parts[len(parts)-1]
+			tagData := DocPDFData{
+				ID:      item.ID,
+				Title:   item.Title,
+				TagPath: tagPath,
+				TagID:   tagID,
+			}
+
+			docPDFMap[tagID] = tagData // TODO remove 不唯一
+			docPDFList = append(docPDFList, tagData)
+		}
+	}
+
+	return tagMap, docPDFMap, docPDFList
+}
+
+func ParseDataList(dataList [][]byte) (map[string]string, map[string]DocPDFData, []DocPDFData) {
+	tagMap := map[string]string{}
+	docPDFMap := map[string]DocPDFData{}
+	docPDFList := []DocPDFData{}
+
+	for _, data := range dataList {
+		partTagMap, partDocPDFMap, partDocPDFList := ParseData(data)
+
+		for k, v := range partTagMap {
+			tagMap[k] = v
+		}
+		for k, v := range partDocPDFMap {
+			docPDFMap[k] = v
+		}
+		docPDFList = append(docPDFList, partDocPDFList...)
+	}
+
+	return tagMap, docPDFMap, docPDFList
+}
+
+func ParseHierarchies(data []byte) TagBase {
+	// 解析 tch_material_tag.json
+	var tagBase TagBase
+	if err := json.Unmarshal(data, &tagBase); err != nil {
+		fmt.Println("Error unmarshaling:", err)
+	}
+	return tagBase
+}
+
+func fetchJSONFile(filename string) ([]byte, error, bool) {
+	slog.Debug("process filename = " + filename)
+	if strings.HasPrefix(filename, "http") {
+		return FetchJsonData(filename)
+	}
+
+	data, err := os.ReadFile(filename)
+	return data, err, true
+}
+
+func ParseURLsFromJSON(data []byte) ([]string, error) {
+	// 抽取urls字段
+	var dv DataVersion
+	if err := json.Unmarshal(data, &dv); err != nil {
+		return nil, err
+	}
+
+	switch v := dv.URLs.(type) {
+	case string:
+		return strings.Split(v, ","), nil
+	case []interface{}:
+		urls := make([]string, len(v))
+		for i, url := range v {
+			if s, ok := url.(string); ok {
+				urls[i] = s
+			}
+		}
+		return urls, nil
+	default:
+		return nil, nil
+	}
+}
+
+func ReadRawData(name string, local bool) ([]byte, [][]byte) {
+	dataDir := "data/tchMaterial"
+	tagURL := TchMaterialInfo.Tag
+	versionURL := TchMaterialInfo.Version
+
+	var tagData []byte
+	dataList := [][]byte{}
+	if local {
+		// 使用本地文件
+		tagURL = path.Join(dataDir, path.Base(tagURL))
+		versionURL = path.Join(dataDir, path.Base(versionURL))
+	}
+
+	tagData, err, statusOK := fetchJSONFile(tagURL)
+	if err != nil && statusOK {
+		return tagData, dataList
+	}
+
+	versionData, err, statusOK := fetchJSONFile(versionURL)
+	if err != nil && statusOK {
+		return tagData, dataList
+	}
+
+	urls, err := ParseURLsFromJSON(versionData)
+	if err != nil {
+		return tagData, dataList
+	}
+
+	for _, url := range urls {
+		dataURL := url
+		if local {
+			dataURL = path.Join(dataDir, path.Base(url))
+		}
+		data, err, statusOK := fetchJSONFile(dataURL)
+		if err != nil && statusOK {
+			continue
+		}
+		dataList = append(dataList, data)
+	}
+	return tagData, dataList
+
+}
+
+func GenerateURLFromID(bookIdList []string) []string {
+	// book_id转化成URL
+	example_url := TchMaterialInfo.Detail
+	urls := []string{}
+	for _, book_id := range bookIdList {
+		urls = append(urls, fmt.Sprintf(example_url, book_id))
+	}
+	return urls
+}
 
 func ParseHierarchies2(level int, tagItem TagItem, tagMap map[string]string) BookItem {
 	var bookItem BookItem
@@ -17,11 +168,6 @@ func ParseHierarchies2(level int, tagItem TagItem, tagMap map[string]string) Boo
 			TagID:   tagItem.TagID,
 			TagName: tagMap[tagItem.TagID],
 		}
-		// if val, ok := docPDFMap[tagItem.TagID]; ok {
-		// 	bookItem.IsBook = true
-		// 	bookItem.BookID = val.ID
-		// 	bookItem.BookName = val.Title
-		// }
 		return bookItem
 	}
 
@@ -39,21 +185,6 @@ func ParseHierarchies2(level int, tagItem TagItem, tagMap map[string]string) Boo
 			childBook := ParseHierarchies2(level+1, child, tagMap)
 			bookItem.Children = append(bookItem.Children, childBook)
 		}
-	} else {
-		// for _, hiddenTagID := range hierarchy.Ext.HiddenTags {
-		// 	if val, ok := docPDFMap[hiddenTagID]; ok {
-		// 		childBook := BookItem{
-		// 			Level:    level + 1,
-		// 			Name:     "-",
-		// 			TagID:    hiddenTagID,
-		// 			TagName:  tagMap[hiddenTagID],
-		// 			IsBook:   true,
-		// 			BookID:   val.ID,
-		// 			BookName: val.Title,
-		// 		}
-		// 		bookItem.Children = append(bookItem.Children, childBook)
-		// 	}
-		// }
 	}
 	return bookItem
 }
@@ -146,9 +277,7 @@ func Query2(bookItem BookItem) (string, []BookOption, []BookItem) {
 			bookOptions = append(bookOptions, BookOption{child.BookID, "《" + name + "》"})
 		}
 		children = nil
-		// sort.Slice(bookOptions, func(i, j int) bool {
-		// 	return bookOptions[i].OptionName < bookOptions[j].OptionName
-		// })
+
 	} else {
 		for _, child := range children {
 			name := child.TagName
