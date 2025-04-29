@@ -39,15 +39,17 @@ func InitUI() {
 	)
 
 	// Tab container
+	optionMaterialData := binding.NewStringList()
+	optionClassroomData := binding.NewStringList()
 	inputData := binding.NewString()
-	optionData := binding.NewStringList()
 	tabContainer := container.NewAppTabs(
-		container.NewTabItemWithIcon(dl.TAB_NAMES[1], theme.GridIcon(), CreateOptionsTab(w, optionData)),
+		container.NewTabItemWithIcon(dl.TAB_NAMES[1], theme.GridIcon(), CreateOptionsTab(w, optionMaterialData)),
+		container.NewTabItemWithIcon(dl.TAB_NAMES[2], theme.CalendarIcon(), CreateClassroomOptionsTab(w, optionClassroomData)),
 		container.NewTabItemWithIcon(dl.TAB_NAMES[0], theme.DocumentIcon(), CreateInputTab(w, inputData)),
 	)
 
 	// Bottom operation area
-	operationArea := CreateOperationArea(w, tabContainer, inputData, optionData)
+	operationArea := CreateOperationArea(w, tabContainer, inputData, optionMaterialData)
 
 	content := container.NewBorder(toolbar, operationArea, nil, nil, tabContainer)
 	w.SetContent(content)

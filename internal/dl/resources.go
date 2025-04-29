@@ -26,13 +26,21 @@ var FORMAT_LIST = []FormatData{
 var TAB_NAMES = []string{
 	"输入链接",
 	"教材列表",
+	"课件包",
 }
 
-// 电子教材层级和列表数据等
+// 电子教材（层级和列表数据等） https://basic.smartedu.cn/tchMaterial
 var TchMaterialInfo = ResourceMetaInfo{
 	Version: "https://s-file-1.ykt.cbern.com.cn/zxx/ndrs/resources/tch_material/version/data_version.json",
 	Tag:     "https://s-file-1.ykt.cbern.com.cn/zxx/ndrs/tags/tch_material_tag.json",
-	detail:  "https://basic.smartedu.cn/tchMaterial/detail?contentType=assets_document&contentId=%s",
+	Detail:  "https://basic.smartedu.cn/tchMaterial/detail?contentType=assets_document&contentId=%s",
+}
+
+// 课程教学>学生自主学习（课程包/课时：m3u8-视频，pdf-课件、教学设计、学习任务清单、课后练习） https://basic.smartedu.cn/syncClassroom
+var SyncClassroomInfo = ResourceMetaInfo{
+	Version: "https://s-file-2.ykt.cbern.com.cn/zxx/ndrs/national_lesson/teachingmaterials/version/data_version.json",
+	Tag: "https://s-file-2.ykt.cbern.com.cn/zxx/ndrs/tags/national_lesson_tag.json",
+	Detail: "https://basic.smartedu.cn/syncClassroom/classActivity?activityId=%s",
 }
 
 // url path对应解析
@@ -68,6 +76,7 @@ var RESOURCES_MAP = map[string]ResourceData{
 		},
 	},
 	"/syncClassroom/classActivity": {
+		// 学生自主学习 fromPrepare=1; 教师备课资源  fromPrepare=0
 		name:     "课程教学>学生自主学习, 课程教学>教师备课资源>课程包",
 		params:   []string{"activityId"},
 		examples: []string{},
@@ -93,7 +102,7 @@ var RESOURCES_MAP = map[string]ResourceData{
 type ResourceMetaInfo struct {
 	Version string
 	Tag     string
-	detail  string
+	Detail  string
 }
 
 type ResourceInfo struct {

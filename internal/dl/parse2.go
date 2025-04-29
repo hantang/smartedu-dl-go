@@ -201,8 +201,7 @@ func Query(tagItem TagItem, docPDFMap map[string]DocPDFData) (string, []string, 
 
 func GenerateURLFromID(bookIdList []string) []string {
 	// book_id转化成URL
-	// name := "/tchMaterial/detail"
-	example_url := TchMaterialInfo.detail
+	example_url := TchMaterialInfo.Detail
 	urls := []string{}
 	for _, book_id := range bookIdList {
 		urls = append(urls, fmt.Sprintf(example_url, book_id))

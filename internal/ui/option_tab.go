@@ -187,3 +187,25 @@ func CreateOptionsTab(w fyne.Window, optionData binding.StringList) *fyne.Contai
 
 	return container.NewBorder(nil, nil, nil, nil, container.NewHSplit(left, right))
 }
+
+func CreateClassroomOptionsTab(w fyne.Window, optionData binding.StringList) *fyne.Container {
+	// local := false
+	// total := 5
+
+	// 左侧多选框
+	statsLabel = widget.NewLabel("课程教学")
+	checkGroup = widget.NewCheckGroup(nil, nil)
+
+	selectButton = widget.NewButtonWithIcon("全选", theme.ConfirmIcon(), nil)
+	deselectButton = widget.NewButtonWithIcon("清空", theme.CancelIcon(), nil)
+	selectButton.Disable()
+	deselectButton.Disable()
+
+	buttonContainer := container.NewCenter(container.NewHBox(selectButton, deselectButton))
+	bottom := container.NewVBox(widget.NewSeparator(), buttonContainer)
+	left := container.NewBorder(statsLabel, bottom, nil, nil, checkGroup)
+
+	// right := initRightPart(w, optionData, local, total)
+
+	return container.NewBorder(nil, nil, nil, nil, left)
+}
