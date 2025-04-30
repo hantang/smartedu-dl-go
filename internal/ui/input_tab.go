@@ -16,7 +16,7 @@ import (
 func CreateInputTab(w fyne.Window, inputData binding.String) *fyne.Container {
 	// Multi-line text input for URL
 	urlInput := widget.NewMultiLineEntry()
-	urlInput.SetPlaceHolder("输入 smart.edu 资源链接")
+	urlInput.SetPlaceHolder("输入 smartedu.cn 资源链接")
 
 	// Bind the input to inputData
 	urlInput.OnChanged = func(text string) {
@@ -40,10 +40,10 @@ func CreateInputTab(w fyne.Window, inputData binding.String) *fyne.Container {
 		fmt.Sprintf(dl.TchMaterialInfo.Detail, "{contentId}"),
 		fmt.Sprintf(dl.SyncClassroomInfo.Detail, "{activityId}"),
 	)
-
-	// Create label
-	bottom := container.NewVBox(container.NewCenter(clearButton),
-		widget.NewSeparator(),
-		container.NewHBox(widget.NewLabel(""), widget.NewLabel(info)))
+	bottom := container.NewVBox(
+		container.NewCenter(clearButton),
+		container.NewPadded(),
+		container.NewHBox(container.NewPadded(), widget.NewLabel(info)),
+	)
 	return container.NewBorder(nil, bottom, nil, nil, urlInput)
 }

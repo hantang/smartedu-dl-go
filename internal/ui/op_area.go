@@ -11,6 +11,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -47,6 +48,7 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 
 	// backup links
 	backupCheckbox := widget.NewCheck("备用解析", func(checked bool) {})
+	logCheckbox := widget.NewCheck("记录日志", func(checked bool) {})
 
 	// user log info
 	authInfo := ""
@@ -78,8 +80,8 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 	})
 
 	// Download buttons
-	downloadButton := widget.NewButtonWithIcon("下载资源", theme.DownloadIcon(), nil)
-	downloadVideoButton := widget.NewButtonWithIcon("下载视频", theme.DownloadIcon(), nil)
+	downloadButton := widget.NewButtonWithIcon("下载以下资源", theme.DownloadIcon(), nil)
+	downloadVideoButton := widget.NewButtonWithIcon("仅下载视频", theme.DownloadIcon(), nil)
 
 	downloadButton.OnTapped = func() {
 		random := true
@@ -145,7 +147,9 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 			return
 		}
 
-		downloadButton.Disable() // 下载进行中禁止再次点击
+		// 下载进行中禁止再次点击
+		downloadButton.Disable()
+		downloadVideoButton.Disable()
 		slog.Info(fmt.Sprintf("filteredURLs count = %d", len(filteredURLs)))
 		// 遍历获取勾选状态
 		var formatList []string
@@ -189,22 +193,31 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 		if len(resourceURLs) == 0 {
 			dialog.NewError(fmt.Errorf("未解析到有效资源"), w).Show()
 			downloadButton.Enable()
+			downloadVideoButton.Enable()
 			return
 		}
 
 		// 下载任务 更新进度条
 		downloadManager := dl.NewDownloadManager(w, progressBar, progressLabel, downloadPath, resourceURLs)
-		downloadManager.StartDownload(downloadButton, headers)
+		downloadManager.StartDownload(downloadButton, downloadVideoButton, headers)
 	}
 
 	downloadVideoButton.OnTapped = func() {}
 
+
+	downloadPart := container.NewCenter(
+		container.New(layout.NewCustomPaddedHBoxLayout(20), downloadButton, downloadVideoButton,),
+	)
 	return container.NewVBox(
 		widget.NewSeparator(),
-		// container.NewHBox(formatLabel, container.NewHBox(checkboxes...)),
-		container.NewBorder(nil, nil, formatLabel, container.NewHBox(downloadButton, widget.NewSeparator(), downloadVideoButton),  container.NewHBox(checkboxes...)),
+		container.NewPadded(),
+		container.NewBorder(nil, nil, nil, logCheckbox, downloadPart),
+		container.NewPadded(),
+		container.NewHBox(formatLabel, container.NewHBox(checkboxes...)),
 		container.NewBorder(nil, nil, pathLabel, container.NewHBox(selectPathButton), pathEntry),
 		container.NewBorder(nil, nil, loginLabel, backupCheckbox, loginEntry),
-		progressBar, progressLabel,
+		container.NewPadded(),
+		progressBar,
+		progressLabel,
 	)
 }
