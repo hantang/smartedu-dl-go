@@ -31,7 +31,8 @@ func (t *CustomTheme) Icon(name fyne.ThemeIconName) fyne.Resource {
 }
 
 func (t *CustomTheme) Font(style fyne.TextStyle) fyne.Resource {
-	return t.defaultTheme.Font(style)
+	// return t.defaultTheme.Font(style)
+	return resourceDouyinSansBoldTtf
 }
 
 func (t *CustomTheme) Size(name fyne.ThemeSizeName) float32 {

@@ -19,5 +19,6 @@ func main() {
 		slog.Debug("Local file mode enabled")
 	}
 
+	// os.Setenv("FYNE_FONT", "./assets/DouyinSansBold.ttf")
 	ui.InitUI(*isLocal)
 }
