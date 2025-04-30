@@ -128,7 +128,6 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 				dialog.NewInformation("警告", "至少选择1个多选框", w).Show()
 				return
 			}
-			// urlList =
 			urlList = dl.GenerateURLFromID(bookIdList)
 			slog.Debug(fmt.Sprintf("urlList count = %d\n%v", len(urlList), urlList))
 		}
@@ -159,11 +158,6 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 			}
 		}
 
-		var useBackup = false
-		if backupCheckbox.Checked {
-			useBackup = true
-		}
-
 		if len(formatList) == 0 {
 			dialog.NewInformation("警告", "请勾选至少1个资源类型", w).Show()
 			return
@@ -171,7 +165,7 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 		slog.Info(fmt.Sprintf("formatList count = %d", len(formatList)))
 		slog.Debug(fmt.Sprintf("formatList =\n %v", formatList))
 
-		resourceURLs := dl.ExtractResources(filteredURLs, formatList, random, useBackup)
+		resourceURLs := dl.ExtractResources(filteredURLs, formatList, random, backupCheckbox.Checked)
 		resourceStats := make(map[string]int)
 		formatDict := make(map[string]string)
 		for _, item := range dl.FORMAT_LIST {
@@ -199,7 +193,7 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 
 		// 下载任务 更新进度条
 		downloadManager := dl.NewDownloadManager(w, progressBar, progressLabel, downloadPath, resourceURLs)
-		downloadManager.StartDownload(downloadButton, downloadVideoButton, headers)
+		downloadManager.StartDownload(downloadButton, downloadVideoButton, headers, logCheckbox.Checked)
 	}
 
 	downloadVideoButton.OnTapped = func() {}

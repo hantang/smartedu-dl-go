@@ -37,23 +37,18 @@ func NewDownloadManager(window fyne.Window, progressBar *widget.ProgressBar, sta
 	}
 }
 
-func (dm *DownloadManager) StartDownload(downloadButton *widget.Button, headers map[string]string) {
+func (dm *DownloadManager) StartDownload(downloadButton *widget.Button, downloadVideoButton *widget.Button, headers map[string]string, enableLog bool) {
 	if err := os.MkdirAll(dm.downloadsDir, 0755); err != nil {
 		dialog.ShowError(fmt.Errorf("下载目录创建失败：%v", err), dm.window)
 		dm.statusLabel.SetText("创建下载目录失败")
 		downloadButton.Enable()
+		downloadVideoButton.Enable()
 		return
 	}
 
 	// 计算文件大小
 	var totalSize int64
 	for i := range dm.links {
-		// resp, err := http.Head(dm.links[i].URL)
-		// if err != nil {
-		// 	dialog.ShowError(err, dm.window)
-		// 	return
-		// }
-		// dm.links[i].Size = resp.ContentLength
 		totalSize += dm.links[i].Size
 	}
 	slog.Debug(fmt.Sprintf("Total links = %d, total file size = %d", len(dm.links), totalSize))
@@ -62,10 +57,15 @@ func (dm *DownloadManager) StartDownload(downloadButton *widget.Button, headers 
 	var downloadedFiles atomic.Int64
 	var wg sync.WaitGroup
 
+	// 初始化：禁用下载按钮
+	downloadButton.Disable()
+	downloadVideoButton.Disable()
+	dm.statusLabel.SetText("正在准备下载...")
+	dm.progressBar.SetValue(0)
+
 	// Update progress in a separate goroutine
 	done := make(chan bool)
 	go func() {
-		dm.statusLabel.SetText("下载中...")
 		for {
 			select {
 			case <-done:
@@ -74,8 +74,10 @@ func (dm *DownloadManager) StartDownload(downloadButton *widget.Button, headers 
 				downloaded := float64(downloadedBytes.Load())
 				downloadedFiles := int64(downloadedFiles.Load())
 				progress := downloaded / float64(totalSize)
-				dm.progressBar.SetValue(progress)
-				dm.statusLabel.SetText(fmt.Sprintf("下载中... %d/%d 个文件", downloadedFiles, len(dm.links)))
+				fyne.DoAndWait(func() {
+					dm.progressBar.SetValue(progress)
+					dm.statusLabel.SetText(fmt.Sprintf("下载中... %d/%d 个文件", downloadedFiles, len(dm.links)))
+				})
 			}
 		}
 	}()
@@ -103,7 +105,7 @@ func (dm *DownloadManager) StartDownload(downloadButton *widget.Button, headers 
 		done <- true
 
 		// Update progress bar on main thread
-		fyne.Do(func() {
+		fyne.DoAndWait(func() {
 			dm.progressBar.SetValue(1.0)
 		})
 
@@ -113,23 +115,19 @@ func (dm *DownloadManager) StartDownload(downloadButton *widget.Button, headers 
 			statsInfo += fmt.Sprintf("\n(已保存至%v)", dm.downloadsDir)
 		}
 
-		// Update status label on main thread
-		fyne.Do(func() {
+		if enableLog {
+			now := time.Now().Format("2006-01-02 15:04:05 MST")
+			more_result := fmt.Sprintf("\n---\n%s 下载统计：成功/失败 = %d/%d\n\n", now, successCount, failedCount)
+			results = append(results, more_result)
+			saveLogFile(dm.downloadsDir, results)
+		}
+
+		fyne.DoAndWait(func() {
 			dm.statusLabel.SetText(fmt.Sprintf("下载完成：成功/失败 = %d/%d", successCount, failedCount))
-		})
-
-		// Show dialog on main thread
-		fyne.Do(func() {
 			dialog.NewInformation("完成", "文件下载完成\n"+statsInfo, dm.window).Show()
-		})
-
-		now := time.Now().Format("2006-01-02 15:04:05 MST")
-		more_result := fmt.Sprintf("\n---\n%s 下载统计：成功/失败 = %d/%d\n\n", now, successCount, failedCount)
-		results = append(results, more_result)
-		saveLogFile(dm.downloadsDir, results)
-
-		fyne.Do(func() {
+	
 			downloadButton.Enable()
+			downloadVideoButton.Enable()
 		})
 	}()
 }
