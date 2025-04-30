@@ -50,7 +50,7 @@ func InitUI(isLocal bool) {
 	)
 
 	// Bottom operation area
-	operationArea := CreateOperationArea(w, tabContainer, inputData, optionMaterialData)
+	operationArea := CreateOperationArea(w, tabContainer, inputData, optionMaterialData, optionClassroomData)
 
 	content := container.NewBorder(toolbar, operationArea, nil, nil, tabContainer)
 	w.SetContent(content)

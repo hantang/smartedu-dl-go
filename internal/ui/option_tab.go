@@ -53,7 +53,6 @@ func cleanData(tabData OptionTabData, index int, optionData binding.StringList, 
 func updateComboboxes(tabData OptionTabData, index int, optionData binding.StringList, w fyne.Window,
 	placeholders []string, bookItemsHistory []dl.BookItem) {
 	// 改成固定数量下拉框
-
 	if index < 0 {
 		slog.Debug(fmt.Sprintf("index = %d, labelArray = %d", index, len(tabData.LabelArray)))
 		return
@@ -195,7 +194,7 @@ func CreateOptionsTab(w fyne.Window, optionData binding.StringList, name string,
 func initRightPart2(w fyne.Window, optionData binding.StringList, tabData OptionTabData, name string, isLocal bool, arrayLen int) *fyne.Container {
 	/*
 	课程列表 解析：
-	data_version.json -> part_10x.json (得到教材信息) -> "id" 字段 得到parts.json->part_100.json 课程单元
+	data_version.json -> part_10x.json (得到教材信息， 没有tag_paths) -> "id" 字段 得到parts.json->part_100.json 课程单元
 	national_lesson_tag.json -> 教材层级结构
 	*/
 

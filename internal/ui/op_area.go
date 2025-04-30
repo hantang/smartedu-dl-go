@@ -37,7 +37,7 @@ func createFormatCheckboxes() []fyne.CanvasObject {
 	return checkboxes
 }
 
-func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData binding.String, optionData binding.StringList) *fyne.Container {
+func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData binding.String, optionData binding.StringList, classroomData binding.StringList) *fyne.Container {
 	// Progress bar
 	progressBar := widget.NewProgressBar()
 	progressLabel := widget.NewLabel("当前无下载内容")
@@ -116,8 +116,7 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 				return
 			}
 			urlList = strings.Split(urlContent, "\n")
-
-		} else {
+		} else if currentTab == dl.TAB_NAMES[1] {
 			bookIdList, err := optionData.Get()
 			slog.Debug(fmt.Sprintf("op: bookIdList = %v, err = %v", bookIdList, err))
 			if err != nil {
@@ -125,12 +124,26 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 				return
 			}
 			if len(bookIdList) == 0 {
-				dialog.NewInformation("警告", "至少选择1个多选框", w).Show()
+				dialog.NewInformation("警告", "至少选择1个教材", w).Show()
 				return
 			}
 			urlList = dl.GenerateURLFromID(bookIdList)
 			slog.Debug(fmt.Sprintf("urlList count = %d\n%v", len(urlList), urlList))
+		} else if currentTab == dl.TAB_NAMES[2] {
+			courseIdList, err := classroomData.Get()
+			slog.Debug(fmt.Sprintf("op: bookIdList = %v, err = %v", courseIdList, err))
+			if err != nil {
+				dialog.ShowError(err, w)
+				return
+			}
+			if len(courseIdList) == 0 {
+				dialog.NewInformation("警告", "至少选择1门课程", w).Show()
+				return
+			}
+			urlList = dl.GenerateURLFromID(courseIdList)
+			slog.Debug(fmt.Sprintf("urlList count = %d\n%v", len(urlList), urlList))
 		}
+
 		filteredURLs := []string{}
 		for _, link := range urlList {
 			if dl.ValidURL(link) {
@@ -198,9 +211,8 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 
 	downloadVideoButton.OnTapped = func() {}
 
-
 	downloadPart := container.NewCenter(
-		container.New(layout.NewCustomPaddedHBoxLayout(20), downloadButton, downloadVideoButton,),
+		container.New(layout.NewCustomPaddedHBoxLayout(20), downloadButton, downloadVideoButton),
 	)
 	return container.NewVBox(
 		widget.NewSeparator(),

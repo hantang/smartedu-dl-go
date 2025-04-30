@@ -16,18 +16,34 @@ func saveJSONToFile(jsonData []byte, filePath string) error {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}
-    var data interface{}
-    if err := json.Unmarshal(jsonData, &data); err != nil {
-        return err
-    }
+	var data interface{}
+	if err := json.Unmarshal(jsonData, &data); err != nil {
+		return err
+	}
 
-    // indentation (2 spaces)
-    indentedJSON, err := json.MarshalIndent(data, "", "  ")
-    if err != nil {
-        return err
-    }
+	// indentation (2 spaces)
+	indentedJSON, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return err
+	}
 
 	return os.WriteFile(filePath, indentedJSON, 0644)
+}
+
+func concatTagPath(tags []DocTag, dimIDOrders []string) string {
+	dimToTag := make(map[string]string)
+	for _, tag := range tags {
+		dimToTag[tag.TagDim] = tag.TagID
+	}
+
+	// 按照指定顺序构建路径
+	var pathParts []string
+	for _, dimID := range dimIDOrders {
+		if tagID, exists := dimToTag[dimID]; exists {
+			pathParts = append(pathParts, tagID)
+		}
+	}
+	return strings.Join(pathParts, "/")
 }
 
 func ParseData(data []byte) (map[string]string, map[string]DocPDFData, []DocPDFData) {
@@ -40,12 +56,21 @@ func ParseData(data []byte) (map[string]string, map[string]DocPDFData, []DocPDFD
 	docPDFMap := map[string]DocPDFData{}
 	docPDFList := []DocPDFData{}
 
+	// 拼接字段顺序 "tagView" 同步课资源视图 / 学段 / 年级 / 学科 / 版本  / 册次 / 新旧教材
+	dimIDOrders := []string{"zxxxd", "zxxnj", "zxxxk", "zxxbb", "zxxcc", "zxxxjjc"}
+
 	for _, item := range DocItemList {
 		for _, tag := range item.TagList {
 			tagMap[tag.TagID] = tag.TagName
 		}
 
-		for _, tagPath := range item.TagPaths {
+		tagPaths := item.TagPaths
+		if tagPaths == nil {
+			// 仅教材列表有tag_paths，课程没有
+			tagPaths = []string{concatTagPath(item.TagList, dimIDOrders)}
+		}
+
+		for _, tagPath := range tagPaths {
 			parts := strings.Split(tagPath, "/")
 			tagID := parts[len(parts)-1]
 			tagData := DocPDFData{
@@ -70,6 +95,7 @@ func ParseDataList(dataList [][]byte) (map[string]string, map[string]DocPDFData,
 
 	for _, data := range dataList {
 		partTagMap, partDocPDFMap, partDocPDFList := ParseData(data)
+		slog.Debug(fmt.Sprintf("partDocPDFList = %d", len(partDocPDFList)))
 
 		for k, v := range partTagMap {
 			tagMap[k] = v
@@ -224,11 +250,13 @@ func UpdateHierarchies2(bookBase *BookItem, tagMap map[string]string, docPDFList
 		tagPath := strings.Split(doc.TagPath, "/")
 		previousItem := bookBase
 		currentItem := bookBase
+
+		start := 1
 		if tagPath[0] != bookBase.TagID {
-			continue
+			start = 0
 		}
 
-		for i := 1; i < len(tagPath); i++ {
+		for i := start; i < len(tagPath); i++ {
 			currentTagID := tagPath[i]
 			previousItem = currentItem
 			currentItem = nil
@@ -243,7 +271,14 @@ func UpdateHierarchies2(bookBase *BookItem, tagMap map[string]string, docPDFList
 				}
 			}
 
-			if flag {
+			if flag && i+1 < len(tagPath){
+				// if i+1 == len(tagPath) {
+				// 	// 不需要新增，只需更新
+				// 	currentItem.BookName = doc.Title
+				// 	currentItem.BookID = doc.ID
+				// 	currentItem.IsBook = true
+				// 	break
+				// }
 				continue
 			}
 
@@ -258,6 +293,12 @@ func UpdateHierarchies2(bookBase *BookItem, tagMap map[string]string, docPDFList
 				newBookItem.BookName = doc.Title
 				newBookItem.BookID = doc.ID
 				newBookItem.IsBook = true
+			}
+
+			if flag {
+				// 匹配，直接添加作为当前的子节点
+				currentItem.Children = append(currentItem.Children, newBookItem)
+				break
 			}
 
 			previousItem.Children = append(previousItem.Children, newBookItem)
@@ -277,11 +318,12 @@ func FetchRawData2(name string, local bool) BookItem {
 
 	tagBase := ParseHierarchies(tagData)
 	tagMap, _, docPDFList := ParseDataList(dataList)
+	slog.Info(fmt.Sprintf("total docPDFList = %d", len(docPDFList)))
 
 	if len(tagBase.Hierarchies) > 0 {
 		count := len(tagBase.Hierarchies[0].Children)
 		bookItems := []BookItem{}
-		for index := range(count) {
+		for index := range count {
 			bookItem := ParseHierarchies2(1, tagBase.Hierarchies[0].Children[index], tagMap)
 			bookItems = append(bookItems, bookItem)
 		}
@@ -293,6 +335,7 @@ func FetchRawData2(name string, local bool) BookItem {
 			TagID:    tagBase.TagID,
 			Children: bookItems,
 		}
+
 		UpdateHierarchies2(&bookItemBase, tagMap, docPDFList)
 		return bookItemBase
 	}
@@ -312,7 +355,6 @@ func Query2(bookItem BookItem) (string, []BookOption, []BookItem) {
 			bookOptions = append(bookOptions, BookOption{child.BookID, "《" + name + "》"})
 		}
 		children = nil
-
 	} else {
 		for _, child := range children {
 			name := child.TagName
@@ -322,12 +364,5 @@ func Query2(bookItem BookItem) (string, []BookOption, []BookItem) {
 		}
 	}
 
-	if bookItem.IsBook || bookItem.Level > 4 {
-		optionNames := []string{}
-		for _, option := range bookOptions {
-			optionNames = append(optionNames, option.OptionName)
-		}
-		slog.Debug(fmt.Sprintf("Query result: level=%d, title=%s tag=%s/%s, book=%s/%s; optionNames=%d/%v", bookItem.Level, title, bookItem.TagName, bookItem.TagID, bookItem.BookName, bookItem.BookID, len(optionNames), optionNames))
-	}
 	return title, bookOptions, children
 }

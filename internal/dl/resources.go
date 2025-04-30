@@ -32,17 +32,17 @@ var TAB_NAMES = []string{
 // 电子教材（层级和列表数据等） https://basic.smartedu.cn/tchMaterial
 var TchMaterialInfo = ResourceMetaInfo{
 	Directory: "data/tchMaterial",
-	Version: "https://s-file-1.ykt.cbern.com.cn/zxx/ndrs/resources/tch_material/version/data_version.json",
-	Tag:     "https://s-file-1.ykt.cbern.com.cn/zxx/ndrs/tags/tch_material_tag.json",
-	Detail:  "https://basic.smartedu.cn/tchMaterial/detail?contentType=assets_document&contentId=%s",
+	Version:   "https://s-file-1.ykt.cbern.com.cn/zxx/ndrs/resources/tch_material/version/data_version.json",
+	Tag:       "https://s-file-1.ykt.cbern.com.cn/zxx/ndrs/tags/tch_material_tag.json",
+	Detail:    "https://basic.smartedu.cn/tchMaterial/detail?contentType=assets_document&contentId=%s",
 }
 
 // 课程教学>学生自主学习（课程包/课时：m3u8-视频，pdf-课件、教学设计、学习任务清单、课后练习） https://basic.smartedu.cn/syncClassroom
 var SyncClassroomInfo = ResourceMetaInfo{
 	Directory: "data/syncClassroom",
-	Version: "https://s-file-2.ykt.cbern.com.cn/zxx/ndrs/national_lesson/teachingmaterials/version/data_version.json",
-	Tag:     "https://s-file-2.ykt.cbern.com.cn/zxx/ndrs/tags/national_lesson_tag.json",
-	Detail:  "https://basic.smartedu.cn/syncClassroom/classActivity?activityId=%s",
+	Version:   "https://s-file-2.ykt.cbern.com.cn/zxx/ndrs/national_lesson/teachingmaterials/version/data_version.json",
+	Tag:       "https://s-file-2.ykt.cbern.com.cn/zxx/ndrs/tags/national_lesson_tag.json",
+	Detail:    "https://basic.smartedu.cn/syncClassroom/classActivity?activityId=%s",
 }
 
 // url path对应解析
@@ -213,8 +213,10 @@ type TagBase struct {
 
 // part_100.json 数据
 type DocTag struct {
-	TagID   string `json:"tag_id"`
-	TagName string `json:"tag_name"`
+	TagID    string `json:"tag_id"`
+	TagName  string `json:"tag_name"`
+	TagDim   string `json:"tag_dimension_id"`
+	OrderNum int    `json:"order_num"`
 }
 
 type DocResourceItem struct {
