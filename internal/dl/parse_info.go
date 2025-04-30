@@ -278,14 +278,20 @@ func FetchRawData2(name string, local bool) BookItem {
 	tagBase := ParseHierarchies(tagData)
 	tagMap, _, docPDFList := ParseDataList(dataList)
 
-	if len(tagBase.Hierarchies) > 0 && len(tagBase.Hierarchies[0].Children) > 0 {
-		bookItem := ParseHierarchies2(1, tagBase.Hierarchies[0].Children[0], tagMap)
+	if len(tagBase.Hierarchies) > 0 {
+		count := len(tagBase.Hierarchies[0].Children)
+		bookItems := []BookItem{}
+		for index := range(count) {
+			bookItem := ParseHierarchies2(1, tagBase.Hierarchies[0].Children[index], tagMap)
+			bookItems = append(bookItems, bookItem)
+		}
+
 		bookItemBase := BookItem{
 			Level:    0,
 			Name:     tagBase.Hierarchies[0].HierarchyName,
 			TagName:  "",
 			TagID:    tagBase.TagID,
-			Children: []BookItem{bookItem},
+			Children: bookItems,
 		}
 		UpdateHierarchies2(&bookItemBase, tagMap, docPDFList)
 		return bookItemBase
