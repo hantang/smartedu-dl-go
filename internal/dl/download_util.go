@@ -61,7 +61,7 @@ func FetchJsonData(url string) ([]byte, error, bool) {
 	resp, err := http.Get(url)
 	slog.Debug(fmt.Sprintf("status code %v", resp.StatusCode))
 	if err != nil {
-		fmt.Println("Error fetching JSON data:", err)
+		slog.Warn(fmt.Sprintf("Error fetching JSON data: %s", err))
 		return nil, err, false
 	}
 	defer resp.Body.Close()

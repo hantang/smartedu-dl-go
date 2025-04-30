@@ -6,8 +6,29 @@ import (
 	"log/slog"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 )
+
+func saveJSONToFile(jsonData []byte, filePath string) error {
+	slog.Debug("Save json data to " + filePath)
+	dir := filepath.Dir(filePath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
+	}
+    var data interface{}
+    if err := json.Unmarshal(jsonData, &data); err != nil {
+        return err
+    }
+
+    // indentation (2 spaces)
+    indentedJSON, err := json.MarshalIndent(data, "", "  ")
+    if err != nil {
+        return err
+    }
+
+	return os.WriteFile(filePath, indentedJSON, 0644)
+}
 
 func ParseData(data []byte) (map[string]string, map[string]DocPDFData, []DocPDFData) {
 	var DocItemList []DocResourceItem
@@ -66,19 +87,28 @@ func ParseHierarchies(data []byte) TagBase {
 	// 解析 tch_material_tag.json
 	var tagBase TagBase
 	if err := json.Unmarshal(data, &tagBase); err != nil {
-		fmt.Println("Error unmarshaling:", err)
+		slog.Warn(fmt.Sprintf("Error unmarshaling: %s", err))
 	}
 	return tagBase
 }
 
-func fetchJSONFile(filename string) ([]byte, error, bool) {
-	slog.Debug("process filename = " + filename)
-	if strings.HasPrefix(filename, "http") {
-		return FetchJsonData(filename)
+func fetchJSONFile(url string, filePath string, local bool) ([]byte, error, bool) {
+	slog.Debug(fmt.Sprintf("process path = %s / file = %s", url, filePath))
+	if !local {
+		slog.Debug("Fetch data from " + url)
+		return FetchJsonData(url)
 	}
 
-	data, err := os.ReadFile(filename)
-	return data, err, true
+	if _, err := os.Stat(filePath); err == nil {
+		data, err := os.ReadFile(filePath)
+		return data, err, true
+	} else {
+		slog.Debug("Local file do not exists, try fetch data from " + url)
+		data, err, status := FetchJsonData(url)
+		// save json data
+		saveJSONToFile(data, filePath)
+		return data, err, status
+	}
 }
 
 func ParseURLsFromJSON(data []byte) ([]string, error) {
@@ -105,24 +135,27 @@ func ParseURLsFromJSON(data []byte) ([]string, error) {
 }
 
 func ReadRawData(name string, local bool) ([]byte, [][]byte) {
-	dataDir := "data/tchMaterial"
+	dataDir := TchMaterialInfo.Directory
 	tagURL := TchMaterialInfo.Tag
 	versionURL := TchMaterialInfo.Version
+	if name == TAB_NAMES[2] {
+		dataDir = SyncClassroomInfo.Directory
+		tagURL = SyncClassroomInfo.Tag
+		versionURL = SyncClassroomInfo.Version
+	}
 
 	var tagData []byte
 	dataList := [][]byte{}
-	if local {
-		// 使用本地文件
-		tagURL = path.Join(dataDir, path.Base(tagURL))
-		versionURL = path.Join(dataDir, path.Base(versionURL))
-	}
 
-	tagData, err, statusOK := fetchJSONFile(tagURL)
+	tagPath := path.Join(dataDir, path.Base(tagURL))
+	versionPath := path.Join(dataDir, path.Base(versionURL))
+
+	tagData, err, statusOK := fetchJSONFile(tagURL, tagPath, local)
 	if err != nil && statusOK {
 		return tagData, dataList
 	}
 
-	versionData, err, statusOK := fetchJSONFile(versionURL)
+	versionData, err, statusOK := fetchJSONFile(versionURL, versionPath, local)
 	if err != nil && statusOK {
 		return tagData, dataList
 	}
@@ -133,18 +166,14 @@ func ReadRawData(name string, local bool) ([]byte, [][]byte) {
 	}
 
 	for _, url := range urls {
-		dataURL := url
-		if local {
-			dataURL = path.Join(dataDir, path.Base(url))
-		}
-		data, err, statusOK := fetchJSONFile(dataURL)
+		dataPath := path.Join(dataDir, path.Base(url))
+		data, err, statusOK := fetchJSONFile(url, dataPath, local)
 		if err != nil && statusOK {
 			continue
 		}
 		dataList = append(dataList, data)
 	}
 	return tagData, dataList
-
 }
 
 func GenerateURLFromID(bookIdList []string) []string {

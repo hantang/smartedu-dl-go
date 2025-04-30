@@ -14,7 +14,9 @@ import (
 	"github.com/hantang/smartedudlgo/internal/dl"
 )
 
-func InitUI() {
+func InitUI(isLocal bool) {
+	arrayLen := 5
+
 	a := app.NewWithID(dl.APP_ID)
 	customTheme := NewCustomTheme()
 	a.Settings().SetTheme(customTheme)
@@ -43,8 +45,8 @@ func InitUI() {
 	optionClassroomData := binding.NewStringList()
 	inputData := binding.NewString()
 	tabContainer := container.NewAppTabs(
-		container.NewTabItemWithIcon(dl.TAB_NAMES[1], theme.GridIcon(), CreateOptionsTab(w, optionMaterialData)),
-		container.NewTabItemWithIcon(dl.TAB_NAMES[2], theme.CalendarIcon(), CreateClassroomOptionsTab(w, optionClassroomData)),
+		container.NewTabItemWithIcon(dl.TAB_NAMES[1], theme.GridIcon(), CreateOptionsTab(w, optionMaterialData, isLocal, arrayLen)),
+		container.NewTabItemWithIcon(dl.TAB_NAMES[2], theme.CalendarIcon(), CreateClassroomOptionsTab(w, optionClassroomData, isLocal, arrayLen)),
 		container.NewTabItemWithIcon(dl.TAB_NAMES[0], theme.DocumentIcon(), CreateInputTab(w, inputData)),
 	)
 

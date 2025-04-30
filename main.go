@@ -8,12 +8,16 @@ import (
 )
 
 func main() {
-	debug := flag.Bool("debug", false, "Enable debug logging")
+	isDebug := flag.Bool("debug", false, "Enable debug logging")
+	isLocal := flag.Bool("local", false, "Enable local file mode")
 	flag.Parse()
-	if *debug {
+	if *isDebug {
 		slog.SetLogLoggerLevel(slog.LevelDebug)
 		slog.Debug("Debug mode enabled")
 	}
+	if *isLocal {
+		slog.Debug("Local file mode enabled")
+	}
 
-	ui.InitUI()
+	ui.InitUI(*isLocal)
 }

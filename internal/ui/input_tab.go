@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"log/slog"
 
 	"fyne.io/fyne/v2"
@@ -33,6 +34,7 @@ func CreateInputTab(w fyne.Window, inputData binding.String) *fyne.Container {
 	})
 
 	// Description text
+	
 	info := "支持的URL格式示例：" +
 		"\n- 教材URL: https://basic.smartedu.cn/tchMaterial/detail?contentType=assets_document&contentId={contentId}" +
 		"\n- 课件URL: https://basic.smartedu.cn/syncClassroom/classActivity?activityId={activityId}" +

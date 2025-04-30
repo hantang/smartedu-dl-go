@@ -119,17 +119,17 @@ func createCheckboxes(optionData binding.StringList, bookOptions []dl.BookOption
 	deselectButton.Enable()
 }
 
-func initRightPart(w fyne.Window, optionData binding.StringList, local bool, total int) *fyne.Container {
+func initRightPart(w fyne.Window, optionData binding.StringList, isLocal bool, arrayLen int) *fyne.Container {
 	// right part: comboboxes for categories
-	labelArray = make([]*widget.Label, total)
-	comboboxArray = make([]*widget.Select, total)
-	comboContainers := make([]fyne.CanvasObject, total)
+	labelArray = make([]*widget.Label, arrayLen)
+	comboboxArray = make([]*widget.Select, arrayLen)
+	comboContainers := make([]fyne.CanvasObject, arrayLen)
 
 	initTabData := false
-	bookItemsHistory := make([]dl.BookItem, total+1)
+	bookItemsHistory := make([]dl.BookItem, arrayLen+1)
 	placeholders := []string{"㊀", "㊁", "㊂", "㊃", "㊄", "㊅", "㊆", "㊇", "㊈", "㊉"}
 
-	for i := 0; i < len(labelArray); i++ {
+	for i := range labelArray {
 		labelArray[i] = widget.NewLabel(placeholders[i])
 		comboboxArray[i] = widget.NewSelect([]string{}, nil)
 		comboboxArray[i].Disable()
@@ -144,7 +144,7 @@ func initRightPart(w fyne.Window, optionData binding.StringList, local bool, tot
 		index := 0
 
 		if !initTabData {
-			bookBase := dl.FetchRawData2("", local)
+			bookBase := dl.FetchRawData2(dl.TAB_NAMES[2], isLocal)
 			if len(bookBase.Children) > 0 {
 				bookItemsHistory[index] = bookBase.Children[index]
 				initTabData = true
@@ -166,10 +166,7 @@ func initRightPart(w fyne.Window, optionData binding.StringList, local bool, tot
 	return right
 }
 
-func CreateOptionsTab(w fyne.Window, optionData binding.StringList) *fyne.Container {
-	local := false // 是否使用本地数据
-	total := 5     // TODO 层级（下拉框）数量
-
+func CreateOptionsTab(w fyne.Window, optionData binding.StringList, isLocal bool, arrayLen int) *fyne.Container {
 	// 左侧多选框
 	statsLabel = widget.NewLabel("课本")
 	checkGroup = widget.NewCheckGroup(nil, nil)
@@ -183,7 +180,7 @@ func CreateOptionsTab(w fyne.Window, optionData binding.StringList) *fyne.Contai
 	bottom := container.NewVBox(widget.NewSeparator(), buttonContainer)
 	left := container.NewBorder(statsLabel, bottom, nil, nil, checkGroup)
 
-	right := initRightPart(w, optionData, local, total)
+	right := initRightPart(w, optionData, isLocal, arrayLen)
 
 	return container.NewBorder(nil, nil, nil, nil, container.NewHSplit(left, right))
 }

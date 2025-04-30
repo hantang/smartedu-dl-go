@@ -52,14 +52,14 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 	authInfo := ""
 	loginLabel := widget.NewLabelWithStyle("登录信息: ", fyne.TextAlign(fyne.TextAlignLeading), fyne.TextStyle{Bold: true})
 	loginEntry := widget.NewEntry()
-	loginEntry.SetPlaceHolder("如果下载失败或非最新版教材，请在浏览器登录后在DevTools查找X-Nd-Auth值并在此填写，“MAC id=XXX……”")
+	loginEntry.SetPlaceHolder("请在浏览器登录后通过DevTools查找X-Nd-Auth值并在此填写，“MAC id=XXX……”")
 
 	// Save path display and button
 	defaultPath, _ := os.UserHomeDir()
 	downloadPath := path.Join(defaultPath, "Downloads")
 	pathLabel := widget.NewLabelWithStyle("保存目录: ", fyne.TextAlign(fyne.TextAlignLeading), fyne.TextStyle{Bold: true})
 	pathEntry := widget.NewEntry()
-	pathEntry.SetPlaceHolder("从“选择目录”中更新路径，输入无效，默认下载目录【Downloads】")
+	pathEntry.SetPlaceHolder("从“选择目录”中更新路径，输入无效，默认【用户下载目录】")
 	// pathEntry.Disable()
 
 	selectPathButton := widget.NewButtonWithIcon("选择目录", theme.FolderIcon(), func() {
@@ -77,8 +77,10 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 		}, w).Show()
 	})
 
-	// Download button
-	downloadButton := widget.NewButtonWithIcon("下载", theme.DownloadIcon(), nil)
+	// Download buttons
+	downloadButton := widget.NewButtonWithIcon("下载资源", theme.DownloadIcon(), nil)
+	downloadVideoButton := widget.NewButtonWithIcon("下载视频", theme.DownloadIcon(), nil)
+
 	downloadButton.OnTapped = func() {
 		random := true
 		var urlList []string
@@ -195,11 +197,13 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, inputData bindin
 		downloadManager.StartDownload(downloadButton, headers)
 	}
 
-	separator := widget.NewSeparator()
+	downloadVideoButton.OnTapped = func() {}
+
 	return container.NewVBox(
-		separator,
-		container.NewHBox(formatLabel, container.NewHBox(checkboxes...)),
-		container.NewBorder(nil, nil, pathLabel, container.NewHBox(selectPathButton, downloadButton), pathEntry),
+		widget.NewSeparator(),
+		// container.NewHBox(formatLabel, container.NewHBox(checkboxes...)),
+		container.NewBorder(nil, nil, formatLabel, container.NewHBox(downloadButton, widget.NewSeparator(), downloadVideoButton),  container.NewHBox(checkboxes...)),
+		container.NewBorder(nil, nil, pathLabel, container.NewHBox(selectPathButton), pathEntry),
 		container.NewBorder(nil, nil, loginLabel, backupCheckbox, loginEntry),
 		progressBar, progressLabel,
 	)
