@@ -7,12 +7,18 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
+/*
+解析：
+data_version.json -> part_10x.json (得到教材信息) -> "id" 字段 得到parts.json->part_100.json 课程单元
+national_lesson_tag.json -> 教材层级结构
+*/
+
 func initRightPart2(w fyne.Window, optionData binding.StringList, isLocal bool, arrayLen int) *fyne.Container {
 	right := container.NewBorder(nil, nil, nil, nil, nil)
 	return right
 }
 
-func CreateClassroomOptionsTab(w fyne.Window, optionData binding.StringList, isLocal bool, arrayLen int) *fyne.Container {
+func CreateClassroomOptionsTab(w fyne.Window, optionData binding.StringList, name string, isLocal bool, arrayLen int) *fyne.Container {
 	// 左侧多选框
 	statsLabel := widget.NewLabel("课程教学")
 	// checkGroup = widget.NewCheckGroup(nil, nil)

@@ -3,7 +3,6 @@ package ui
 import (
 	"image/color"
 
-	// "fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
@@ -45,8 +44,8 @@ func InitUI(isLocal bool) {
 	optionClassroomData := binding.NewStringList()
 	inputData := binding.NewString()
 	tabContainer := container.NewAppTabs(
-		container.NewTabItemWithIcon(dl.TAB_NAMES[1], theme.GridIcon(), CreateOptionsTab(w, optionMaterialData, isLocal, arrayLen)),
-		container.NewTabItemWithIcon(dl.TAB_NAMES[2], theme.MediaVideoIcon(), CreateClassroomOptionsTab(w, optionClassroomData, isLocal, arrayLen)),
+		container.NewTabItemWithIcon(dl.TAB_NAMES[1], theme.GridIcon(), CreateOptionsTab(w, optionMaterialData, dl.TAB_NAMES[1], isLocal, arrayLen)),
+		container.NewTabItemWithIcon(dl.TAB_NAMES[2], theme.MediaVideoIcon(), CreateClassroomOptionsTab(w, optionClassroomData, dl.TAB_NAMES[2], isLocal, arrayLen)),
 		container.NewTabItemWithIcon(dl.TAB_NAMES[0], theme.ContentPasteIcon(), CreateInputTab(w, inputData)),
 	)
 

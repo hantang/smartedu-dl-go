@@ -101,22 +101,36 @@ func (dm *DownloadManager) StartDownload(downloadButton *widget.Button, headers 
 	go func() {
 		wg.Wait()
 		done <- true
-		dm.progressBar.SetValue(1.0)
+
+		// Update progress bar on main thread
+		fyne.Do(func() {
+			dm.progressBar.SetValue(1.0)
+		})
 
 		failedCount := len(dm.links) - successCount
 		statsInfo := fmt.Sprintf("- 成功：%d\n- 失败：%d", successCount, failedCount)
 		if successCount > 0 {
 			statsInfo += fmt.Sprintf("\n(已保存至%v)", dm.downloadsDir)
 		}
-		dm.statusLabel.SetText(fmt.Sprintf("下载完成：成功/失败 = %d/%d", successCount, failedCount))
-		dialog.NewInformation("完成", "文件下载完成\n"+statsInfo, dm.window).Show()
+
+		// Update status label on main thread
+		fyne.Do(func() {
+			dm.statusLabel.SetText(fmt.Sprintf("下载完成：成功/失败 = %d/%d", successCount, failedCount))
+		})
+
+		// Show dialog on main thread
+		fyne.Do(func() {
+			dialog.NewInformation("完成", "文件下载完成\n"+statsInfo, dm.window).Show()
+		})
 
 		now := time.Now().Format("2006-01-02 15:04:05 MST")
 		more_result := fmt.Sprintf("\n---\n%s 下载统计：成功/失败 = %d/%d\n\n", now, successCount, failedCount)
 		results = append(results, more_result)
 		saveLogFile(dm.downloadsDir, results)
 
-		downloadButton.Enable()
+		fyne.Do(func() {
+			downloadButton.Enable()
+		})
 	}()
 }
 

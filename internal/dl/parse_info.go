@@ -134,7 +134,7 @@ func ParseURLsFromJSON(data []byte) ([]string, error) {
 	}
 }
 
-func ReadRawData(name string, local bool) ([]byte, [][]byte) {
+func readRawData(name string, local bool) ([]byte, [][]byte) {
 	dataDir := TchMaterialInfo.Directory
 	tagURL := TchMaterialInfo.Tag
 	versionURL := TchMaterialInfo.Version
@@ -273,7 +273,7 @@ func UpdateHierarchies2(bookBase *BookItem, tagMap map[string]string, docPDFList
 }
 
 func FetchRawData2(name string, local bool) BookItem {
-	tagData, dataList := ReadRawData(name, local)
+	tagData, dataList := readRawData(name, local)
 
 	tagBase := ParseHierarchies(tagData)
 	tagMap, _, docPDFList := ParseDataList(dataList)

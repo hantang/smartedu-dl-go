@@ -70,6 +70,9 @@ func updateComboboxes(index int, optionData binding.StringList, w fyne.Window,
 		optionNames = append(optionNames, option.OptionName)
 	}
 	if len(children) > 0 {
+		if title == "电子教材" {
+			title = "学段"
+		}
 		labelArray[index].SetText(fmt.Sprintf("%s〖%s〗", placeholders[index], title))
 		comboboxArray[index].SetOptions(optionNames)
 		comboboxArray[index].SetSelected(optionNames[0])
@@ -119,7 +122,7 @@ func createCheckboxes(optionData binding.StringList, bookOptions []dl.BookOption
 	deselectButton.Enable()
 }
 
-func initRightPart(w fyne.Window, optionData binding.StringList, isLocal bool, arrayLen int) *fyne.Container {
+func initRightPart(w fyne.Window, optionData binding.StringList, name string, isLocal bool, arrayLen int) *fyne.Container {
 	// right part: comboboxes for categories
 	labelArray = make([]*widget.Label, arrayLen)
 	comboboxArray = make([]*widget.Select, arrayLen)
@@ -144,7 +147,7 @@ func initRightPart(w fyne.Window, optionData binding.StringList, isLocal bool, a
 		index := 0
 
 		if !initTabData {
-			bookBase := dl.FetchRawData2(dl.TAB_NAMES[2], isLocal)
+			bookBase := dl.FetchRawData2(name, isLocal)
 			if len(bookBase.Children) > 0 {
 				bookItemsHistory[index] = bookBase.Children[index]
 				initTabData = true
@@ -166,7 +169,7 @@ func initRightPart(w fyne.Window, optionData binding.StringList, isLocal bool, a
 	return right
 }
 
-func CreateOptionsTab(w fyne.Window, optionData binding.StringList, isLocal bool, arrayLen int) *fyne.Container {
+func CreateOptionsTab(w fyne.Window, optionData binding.StringList, name string, isLocal bool, arrayLen int) *fyne.Container {
 	// 左侧多选框
 	statsLabel = widget.NewLabel("课本")
 	checkGroup = widget.NewCheckGroup(nil, nil)
@@ -180,7 +183,7 @@ func CreateOptionsTab(w fyne.Window, optionData binding.StringList, isLocal bool
 	bottom := container.NewVBox(widget.NewSeparator(), buttonContainer)
 	left := container.NewBorder(statsLabel, bottom, nil, nil, checkGroup)
 
-	right := initRightPart(w, optionData, isLocal, arrayLen)
+	right := initRightPart(w, optionData, name, isLocal, arrayLen)
 
 	return container.NewBorder(nil, nil, nil, nil, container.NewHSplit(left, right))
 }
