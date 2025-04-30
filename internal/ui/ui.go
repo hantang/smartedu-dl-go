@@ -45,7 +45,7 @@ func InitUI(isLocal bool) {
 	inputData := binding.NewString()
 	tabContainer := container.NewAppTabs(
 		container.NewTabItemWithIcon(dl.TAB_NAMES[1], theme.ListIcon(), CreateOptionsTab(w, optionMaterialData, dl.TAB_NAMES[1], isLocal, arrayLen)),
-		container.NewTabItemWithIcon(dl.TAB_NAMES[2], theme.MediaVideoIcon(), CreateClassroomOptionsTab(w, optionClassroomData, dl.TAB_NAMES[2], isLocal, arrayLen)),
+		container.NewTabItemWithIcon(dl.TAB_NAMES[2], theme.MediaVideoIcon(), CreateClassroomOptionsTab(w, optionClassroomData, dl.TAB_NAMES[2], isLocal, 7)),
 		container.NewTabItemWithIcon(dl.TAB_NAMES[0], theme.ContentPasteIcon(), CreateInputTab(w, inputData)),
 	)
 
