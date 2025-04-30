@@ -10,6 +10,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"github.com/hantang/smartedudlgo/internal/dl"
 )
 
 func CreateInputTab(w fyne.Window, inputData binding.String) *fyne.Container {
@@ -34,11 +35,11 @@ func CreateInputTab(w fyne.Window, inputData binding.String) *fyne.Container {
 	})
 
 	// Description text
-	
-	info := "支持的URL格式示例：" +
-		"\n- 教材URL: https://basic.smartedu.cn/tchMaterial/detail?contentType=assets_document&contentId={contentId}" +
-		"\n- 课件URL: https://basic.smartedu.cn/syncClassroom/classActivity?activityId={activityId}" +
-		"\n\n可以直接从浏览器地址复制URL。"
+	info := fmt.Sprintf(
+		"支持的URL格式示例：\n• 教材URL: %s\n• 课程URL: %s\n\n可以直接从浏览器地址复制URL。",
+		fmt.Sprintf(dl.TchMaterialInfo.Detail, "{contentId}"),
+		fmt.Sprintf(dl.SyncClassroomInfo.Detail, "{activityId}"),
+	)
 
 	// Create label
 	bottom := container.NewVBox(container.NewCenter(clearButton),
