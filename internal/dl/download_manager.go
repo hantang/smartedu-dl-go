@@ -117,8 +117,14 @@ func (dm *DownloadManager) StartDownload(downloadButton *widget.Button, download
 
 		if enableLog {
 			now := time.Now().Format("2006-01-02 15:04:05 MST")
-			more_result := fmt.Sprintf("\n---\n%s 下载统计：成功/失败 = %d/%d\n\n", now, successCount, failedCount)
-			results = append(results, more_result)
+			more := []string{
+				"",
+				"===============================================================",
+				fmt.Sprintf("## %s 下载统计：成功/失败 = %d/%d", now, successCount, failedCount),
+				"---------------------------------------------------------------",
+				"**详细信息：**",
+			}
+			results = append(more, results...)
 			saveLogFile(dm.downloadsDir, results)
 		}
 
@@ -135,7 +141,7 @@ func (dm *DownloadManager) StartDownload(downloadButton *widget.Button, download
 func saveLogFile(downloadsDir string, results []string) {
 	filename := "log-smartedudl.txt"
 	savePath := filepath.Join(downloadsDir, filename)
-	content := strings.Join(results, "\n")
+	content := strings.Join(append(results, ""), "\n")
 
 	slog.Info(fmt.Sprintf("Save log to %s", savePath))
 
