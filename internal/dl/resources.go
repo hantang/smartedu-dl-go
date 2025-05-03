@@ -35,6 +35,7 @@ var TchMaterialInfo = ResourceMetaInfo{
 	Version:   "https://s-file-1.ykt.cbern.com.cn/zxx/ndrs/resources/tch_material/version/data_version.json",
 	Tag:       "https://s-file-1.ykt.cbern.com.cn/zxx/ndrs/tags/tch_material_tag.json",
 	Detail:    "https://basic.smartedu.cn/tchMaterial/detail?contentType=assets_document&contentId=%s",
+	Type:      "tchMaterial",
 }
 
 // 课程教学>学生自主学习（课程包/课时：m3u8-视频，pdf-课件、教学设计、学习任务清单、课后练习） https://basic.smartedu.cn/syncClassroom
@@ -43,6 +44,19 @@ var SyncClassroomInfo = ResourceMetaInfo{
 	Version:   "https://s-file-2.ykt.cbern.com.cn/zxx/ndrs/national_lesson/teachingmaterials/version/data_version.json",
 	Tag:       "https://s-file-2.ykt.cbern.com.cn/zxx/ndrs/tags/national_lesson_tag.json",
 	Detail:    "https://basic.smartedu.cn/syncClassroom/classActivity?activityId=%s",
+	Type:      "national_lesson", // DataCourseInfo.ResourceType
+}
+
+var SyncClassroomInfo2 = ResourceMetaInfo{
+	// 基础教育精品课
+	Detail: "https://basic.smartedu.cn/qualityCourse?courseId=%s",
+	Type:   "elite_lesson",
+}
+
+var InputInfo = ResourceMetaInfo{
+	// 输入的链接，满足RESOURCES_MAP
+	Detail: "",
+	Type:   "",
 }
 
 // url path对应解析
@@ -79,11 +93,23 @@ var RESOURCES_MAP = map[string]ResourceData{
 	},
 	"/syncClassroom/classActivity": {
 		// 学生自主学习 fromPrepare=1; 教师备课资源  fromPrepare=0
-		name:     "课程教学>学生自主学习, 课程教学>教师备课资源>课程包",
+		name:     "课程教学>学生自主学习, 课程教学>教师备课资源>课程包", // 国家课
 		params:   []string{"activityId"},
 		examples: []string{},
 		resources: ResourceInfo{
 			basic: "https://%s.ykt.cbern.com.cn/zxx/ndrv2/national_lesson/resources/details/%s.json",
+		},
+	},
+	"/qualityCourse": {
+		name:   "课程教学>学生自主学习(基础教育精品课程)", // 精品课
+		params: []string{"courseId"},
+		examples: []string{
+			// url需要chapterId才能打开
+			"https://basic.smartedu.cn/qualityCourse?courseId=78605dce-97f6-62b7-6cb2-ac41ffd9467b&chapterId=1b2575b9-16f6-3501-8bbf-2d259fea97cf",
+		},
+		resources: ResourceInfo{
+			// https://s-file-1.ykt.cbern.com.cn/zxx/ndrv2/resources/78605dce-97f6-62b7-6cb2-ac41ffd9467b.json
+			basic: "https://%s.ykt.cbern.com.cn/zxx/ndrv2/resources/tch_material/details/%s.json",
 		},
 	},
 	// "/syncClassroom/examinationpapers": {
@@ -106,6 +132,7 @@ type ResourceMetaInfo struct {
 	Version   string
 	Tag       string
 	Detail    string
+	Type      string
 }
 
 type ResourceInfo struct {
@@ -232,4 +259,52 @@ type DataVersion struct {
 	Module        string      `json:"module"`
 	ModuleVersion int64       `json:"module_version"`
 	URLs          interface{} `json:"urls"` // can be string or []string
+}
+
+// national_lesson 课程
+type DataCourseInfo struct {
+	ID               string   `json:"id"`
+	Title            string   `json:"title"`
+	TeachIDs         []string `json:"teachmeterial_ids"`
+	ChapterPaths     []string `json:"chapter_paths"`           // 只取第1个 和 NodePath关联
+	ResourceType     string   `json:"resource_type_code"`      // national_lesson / elite_lesson
+	ResourceTypeName string   `json:"resource_type_code_name"` // 国家课 / 精品课
+	// 更多字段 relations
+}
+
+// examinationpapers / 试卷
+// national_lesson / 国家课
+// elite_lesson / 精品课
+
+// 课程目录
+type DataCourseChapter struct {
+	ID         string              `json:"id"`
+	Title      string              `json:"title"`
+	NodePath   string              `json:"node_path"`
+	TreeID     string              `json:"tree_id"`
+	CreateTime string              `json:"create_time"`
+	UpdateTime string              `json:"update_time"`
+	Children   []DataCourseChapter `json:"child_nodes"`
+}
+
+type CourseItem struct {
+	Title        string
+	NodePath     string // DataCourseChapter.NodePath
+	NodeID       string // DataCourseChapter.ID
+	NodeTitle    string // DataCourseChapter.Title
+	NodeParents  []string
+	CourseID     string // DataCourseInfo.ID
+	CourseTitle  string
+	ResourceType string
+}
+
+type CourseToc struct {
+	Index    int
+	Title    string
+	Children []CourseItem
+}
+
+type LinkItem struct {
+	Link string
+	Type string // ResourceMetaInfo.Type
 }

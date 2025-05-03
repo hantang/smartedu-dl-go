@@ -2,36 +2,43 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 	"log/slog"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/data/binding"
-	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/hantang/smartedudlgo/internal/dl"
 )
 
-func CreateInputTab(w fyne.Window, inputData binding.String) *fyne.Container {
+func CreateInputTab(w fyne.Window, linkItemMaps map[string][]dl.LinkItem, name string, isLocal bool, arrayLen int) *fyne.Container {
 	// Multi-line text input for URL
 	urlInput := widget.NewMultiLineEntry()
 	urlInput.SetPlaceHolder("输入 smartedu.cn 资源链接")
 
-	// Bind the input to inputData
+	// Update the input to linkItemMaps[name]
 	urlInput.OnChanged = func(text string) {
-		if err := inputData.Set(text); err != nil {
-			slog.Error("Failed to update inputData", "error", err)
+		lines := strings.Split(text, "\n")
+		linkItemMaps[name] = []dl.LinkItem{} // 清空现有数据
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			linkItem := dl.LinkItem{
+				Link: line,
+				Type: dl.InputInfo.Type,
+			}
+			linkItemMaps[name] = append(linkItemMaps[name], linkItem)
 		}
+		slog.Debug(fmt.Sprintf("text = %s, lines = %d, options = %d", text, len(lines), len(linkItemMaps[name])))
 	}
 
 	// Clear button
 	clearButton := widget.NewButtonWithIcon("清空", theme.DeleteIcon(), func() {
 		urlInput.SetText("")
-		if err := inputData.Set(""); err != nil {
-			slog.Error("清空失败", "error", err)
-			dialog.ShowError(err, w)
-		}
+		linkItemMaps[name] = []dl.LinkItem{}
 	})
 
 	// Description text

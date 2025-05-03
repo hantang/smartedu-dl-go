@@ -16,49 +16,103 @@ import (
 )
 
 type OptionTabData struct {
-	StatsLabel     *widget.Label
-	CheckGroup     *widget.CheckGroup
-	SelectButton   *widget.Button
-	DeselectButton *widget.Button
-	LabelArray     []*widget.Label
-	ComboboxArray  []*widget.Select
+	// right
+	InitTabData     bool
+	ComboLabelArray []*widget.Label
+	ComboboxArray   []*widget.Select
+	QueryButton     *widget.Button
+	QueryLabel      *widget.Label
+	QueryText       binding.String
+
+	// left bottom
+	CheckLabel      *widget.Label
+	CheckText       binding.String
+	CheckGroup      *widget.CheckGroup // 课本或课程单元
+	SelectAllButton *widget.Button
+	CancelAllButton *widget.Button
+
+	// left top 用于课程
+	RadioGroup      *widget.RadioGroup // 选择课程
+	RadioStatsLabel *widget.Label
+	Combobox        *widget.Select // 选择章节
+	RadioDict       map[string]string
+	CourseDict      map[string][]dl.CourseToc
 }
 
-func cleanData(tabData OptionTabData, index int, optionData binding.StringList, labelArray []*widget.Label, comboboxArray []*widget.Select, placeholders []string) {
-	// Clear data
-	optionData.Set(nil)
+var placeholders = []string{"㊀", "㊁", "㊂", "㊃", "㊄", "㊅", "㊆", "㊇", "㊈", "㊉"}
 
-	tabData.StatsLabel.SetText("课本")
-	tabData.CheckGroup.Options = []string{}
-	tabData.CheckGroup.SetSelected([]string{})
-	tabData.SelectButton.OnTapped = nil
-	tabData.DeselectButton.OnTapped = nil
-
-	tabData.CheckGroup.Disable()
-	tabData.SelectButton.Disable()
-	tabData.DeselectButton.Disable()
-
-	if index < 0 {
-		return
-	}
-	for i := index; i < len(labelArray); i++ {
-		labelArray[i].SetText(placeholders[i])
-		comboboxArray[i].SetOptions(nil)
-		comboboxArray[i].SetSelected("")
-		comboboxArray[i].OnChanged = nil
-		comboboxArray[i].Disable()
+// 重置选择组件（Select 或 RadioGroup）
+func resetSelectComponent(selectWidget interface{}) {
+	switch v := selectWidget.(type) {
+	case *widget.Select:
+		v.SetOptions(nil)
+		v.SetSelected("")
+		v.OnChanged = nil
+		v.Disable()
+	case *widget.RadioGroup:
+		v.Options = []string{}
+		v.SetSelected("")
+		v.OnChanged = nil
+		v.Disable()
+	case *widget.CheckGroup:
+		v.Options = []string{}
+		v.SetSelected([]string{})
+		v.OnChanged = nil
+		v.Disable()
 	}
 }
 
-func updateComboboxes(tabData OptionTabData, index int, optionData binding.StringList, w fyne.Window,
-	placeholders []string, bookItemsHistory []dl.BookItem) {
+// 重置所有组件状态
+func resetComponents(tabData OptionTabData, index int) {
+	// 重置多选框
+	resetSelectComponent(tabData.CheckGroup)
+
+	// 重置按钮
+	tabData.SelectAllButton.OnTapped = nil
+	tabData.SelectAllButton.Disable()
+	tabData.CancelAllButton.OnTapped = nil
+	tabData.CancelAllButton.Disable()
+
+	for i, label := range tabData.ComboLabelArray {
+		if i >= index {
+			label.SetText(placeholders[i])
+			resetSelectComponent(tabData.ComboboxArray[i])
+		}
+	}
+
+	// 重置单个下拉框
+	if tabData.Combobox != nil {
+		resetSelectComponent(tabData.Combobox)
+	}
+	if tabData.RadioGroup != nil {
+		resetSelectComponent(tabData.RadioGroup)
+	}
+}
+
+// 清理数据
+func cleanData(tabData OptionTabData, name string, index int, linkItemMaps map[string][]dl.LinkItem) {
+	// 重置所有组件
+	resetComponents(tabData, index)
+
+	if name == dl.TAB_NAMES[2] {
+		// tabData.QueryText.Set("")
+		tabData.CheckText.Set("课程包列表")
+	} else {
+		tabData.CheckText.Set("电子教材")
+	}
+
+	// 清空数据
+	linkItemMaps[name] = []dl.LinkItem{}
+}
+
+func updateComboboxes(w fyne.Window, tabData OptionTabData, name string, index int, linkItemMaps map[string][]dl.LinkItem, bookItemsHistory []dl.BookItem) {
 	// 改成固定数量下拉框
 	if index < 0 {
-		slog.Debug(fmt.Sprintf("index = %d, labelArray = %d", index, len(tabData.LabelArray)))
+		slog.Debug(fmt.Sprintf("index = %d, labelArray = %d", index, len(tabData.ComboLabelArray)))
 		return
 	}
 
-	cleanData(tabData, index, optionData, tabData.LabelArray, tabData.ComboboxArray, placeholders)
+	cleanData(tabData, name, index, linkItemMaps)
 	title, bookOptions, children := dl.Query2(bookItemsHistory[index])
 	if len(bookOptions) == 0 {
 		dialog.ShowError(fmt.Errorf("数据查询为空"), w)
@@ -75,24 +129,29 @@ func updateComboboxes(tabData OptionTabData, index int, optionData binding.Strin
 			title = "教材"
 		}
 
-		tabData.LabelArray[index].SetText(fmt.Sprintf("%s〖%s〗", placeholders[index], title))
+		tabData.ComboLabelArray[index].SetText(fmt.Sprintf("%s〖%s〗", placeholders[index], title))
 		tabData.ComboboxArray[index].SetOptions(optionNames)
 		tabData.ComboboxArray[index].SetSelected(optionNames[0])
 		tabData.ComboboxArray[index].OnChanged = func(selected string) {
 			// 创建下一个下拉框
 			optIndex := slices.Index(optionNames, selected)
 			bookItemsHistory[index+1] = children[optIndex]
-			updateComboboxes(tabData, index+1, optionData, w, placeholders, bookItemsHistory)
+			updateComboboxes(w, tabData, name, index+1, linkItemMaps, bookItemsHistory)
 		}
 		tabData.ComboboxArray[index].Enable()
 	} else {
 		// 最后一层，创建复选框
-		createCheckboxes(tabData, optionData, bookOptions)
+		if name == dl.TAB_NAMES[2] {
+			createRadiobuttons(w, name, tabData, linkItemMaps, bookOptions)
+		} else {
+			createCheckboxes(name, tabData, linkItemMaps, bookOptions)
+		}
 	}
 }
 
-func createCheckboxes(tabData OptionTabData, optionData binding.StringList, bookOptions []dl.BookOption) {
+func createCheckboxes(name string, tabData OptionTabData, linkItemMaps map[string][]dl.LinkItem, bookOptions []dl.BookOption) {
 	// left part: checkboxes for book(PDF)
+	info := "电子教材"
 	options := []string{}
 	optionMap := map[string]string{}
 	for i, opt := range bookOptions {
@@ -101,163 +160,120 @@ func createCheckboxes(tabData OptionTabData, optionData binding.StringList, book
 		optionMap[name2] = opt.OptionID
 	}
 
-	optionData.Set(nil)
-	tabData.StatsLabel.SetText(fmt.Sprintf("课本（共%d项）：", len(options)))
+	// linkItemMaps[name] = []dl.LinkItem{}
+	tabData.CheckText.Set(fmt.Sprintf("%s（共%d项）：", info, len(options)))
 	tabData.CheckGroup.Options = options
-	tabData.CheckGroup.Selected = []string{}
+	tabData.CheckGroup.SetSelected([]string{})
 	tabData.CheckGroup.OnChanged = func(items []string) {
-		optionData.Set(nil)
+		linkItemMaps[name] = []dl.LinkItem{}
 		for _, item := range items {
-			optionData.Append(optionMap[item])
+			linkItem := dl.LinkItem{
+				Link: optionMap[item],
+				Type: dl.TchMaterialInfo.Type,
+			}
+			linkItemMaps[name] = append(linkItemMaps[name], linkItem)
 		}
-		tabData.StatsLabel.SetText(fmt.Sprintf("课本（共%d项，已选%d项）：", len(options), len(items)))
+		tabData.CheckText.Set(fmt.Sprintf("%s（共%d项，已选%d项）：", info, len(options), len(items)))
 	}
-	tabData.SelectButton.OnTapped = func() {
+
+	tabData.SelectAllButton.OnTapped = func() {
 		tabData.CheckGroup.SetSelected(options)
 	}
-	tabData.DeselectButton.OnTapped = func() {
+	tabData.CancelAllButton.OnTapped = func() {
 		tabData.CheckGroup.SetSelected(nil)
 	}
 
 	tabData.CheckGroup.Enable()
-	tabData.SelectButton.Enable()
-	tabData.DeselectButton.Enable()
+	tabData.SelectAllButton.Enable()
+	tabData.CancelAllButton.Enable()
 }
 
-func initRightPart(w fyne.Window, optionData binding.StringList, tabData OptionTabData, name string, isLocal bool, arrayLen int) *fyne.Container {
+func initRightPart(w fyne.Window, linkItemMaps map[string][]dl.LinkItem, tabData OptionTabData, name string, isLocal bool, arrayLen int) *fyne.Container {
 	// right part: comboboxes for categories
-	comboContainers := make([]fyne.CanvasObject, arrayLen)
-
-	initTabData := false
 	bookItemsHistory := make([]dl.BookItem, arrayLen+1)
-	placeholders := []string{"㊀", "㊁", "㊂", "㊃", "㊄", "㊅", "㊆", "㊇", "㊈", "㊉"}
+	comboContainers := make([]fyne.CanvasObject, arrayLen)
+	info := "教材"
+	if name == dl.TAB_NAMES[2] {
+		info = "课程"
+	}
 
-	for i := range tabData.LabelArray {
-		tabData.LabelArray[i] = widget.NewLabel(placeholders[i])
+	for i := range tabData.ComboLabelArray {
+		tabData.ComboLabelArray[i] = widget.NewLabel(placeholders[i])
 		tabData.ComboboxArray[i] = widget.NewSelect([]string{}, nil)
 		tabData.ComboboxArray[i].Disable()
-		comboContainers[i] = container.NewBorder(nil, nil, tabData.LabelArray[i], nil, tabData.ComboboxArray[i])
+		comboContainers[i] = container.NewBorder(nil, nil, tabData.ComboLabelArray[i], nil, tabData.ComboboxArray[i])
 	}
-	comboboxContainer := container.NewVBox(comboContainers...)
-	queryButton := widget.NewButtonWithIcon("查询", theme.SearchIcon(), nil)
-	infoLabel := widget.NewLabel("点击查询加载教材信息")
 
-	queryButton.OnTapped = func() {
-		infoLabel.SetText("加载中...")
+	comboboxContainer := container.NewVBox(comboContainers...)
+	bottom := container.NewVBox(widget.NewSeparator(), container.NewCenter(tabData.QueryButton))
+	right := container.NewBorder(tabData.QueryLabel, bottom, nil, nil, comboboxContainer)
+
+	// 查询/重置按钮
+	tabData.QueryButton.OnTapped = func() {
+		tabData.QueryText.Set("加载中...")
 		index := 0
 
-		if !initTabData {
+		if !tabData.InitTabData {
 			bookBase := dl.FetchRawData2(name, isLocal)
-			if len(bookBase.Children) > 0 {
-				bookItemsHistory[index] = bookBase.Children[index]
-				initTabData = true
+			if name == dl.TAB_NAMES[2] {
+				if bookBase.Name != "" {
+					bookItemsHistory[index] = bookBase
+					tabData.InitTabData = true
+				}
+			} else {
+
+				if len(bookBase.Children) > 0 {
+					bookItemsHistory[index] = bookBase.Children[index]
+					tabData.InitTabData = true
+				}
 			}
 		}
-		if initTabData {
-			infoLabel.SetText("请选择教材")
-			queryButton.SetText("重置")
 
-			updateComboboxes(tabData, index, optionData, w, placeholders, bookItemsHistory)
+		if tabData.InitTabData {
+			tabData.QueryText.Set("请选择" + info)
+			tabData.QueryButton.SetText("重置")
+			tabData.QueryButton.SetIcon(theme.ViewRefreshIcon())
+
+			updateComboboxes(w, tabData, name, index, linkItemMaps, bookItemsHistory)
 		} else {
-			infoLabel.SetText("教材加载失败，稍后重试")
+			tabData.QueryText.Set(info + "加载失败，稍后重试")
 			dialog.ShowError(fmt.Errorf("数据初始化失败"), w)
 		}
 	}
 
-	bottom := container.NewVBox(widget.NewSeparator(), container.NewCenter(queryButton))
-	right := container.NewBorder(infoLabel, bottom, nil, nil, comboboxContainer)
 	return right
 }
 
-func CreateOptionsTab(w fyne.Window, optionData binding.StringList, name string, isLocal bool, arrayLen int) *fyne.Container {
+func CreateMaterialOptionsTab(w fyne.Window, linkItemMaps map[string][]dl.LinkItem, name string, isLocal bool, arrayLen int) *fyne.Container {
 	// 左侧多选框
 	var tabData = OptionTabData{
-		StatsLabel:     widget.NewLabel("课本"),
-		CheckGroup:     widget.NewCheckGroup(nil, nil),
-		SelectButton:   widget.NewButtonWithIcon("全选", theme.ConfirmIcon(), nil),
-		DeselectButton: widget.NewButtonWithIcon("清空", theme.CancelIcon(), nil),
-		LabelArray:     make([]*widget.Label, arrayLen),
-		ComboboxArray:  make([]*widget.Select, arrayLen),
+		InitTabData:     false,
+		ComboLabelArray: make([]*widget.Label, arrayLen),
+		ComboboxArray:   make([]*widget.Select, arrayLen),
+		QueryButton:     widget.NewButtonWithIcon("查询", theme.SearchIcon(), nil),
+		QueryLabel:      widget.NewLabel(""),
+		QueryText:       binding.NewString(),
+
+		CheckLabel:      widget.NewLabel(""),
+		CheckText:       binding.NewString(),
+		CheckGroup:      widget.NewCheckGroup(nil, nil),
+		SelectAllButton: widget.NewButtonWithIcon("全选", theme.ConfirmIcon(), nil),
+		CancelAllButton: widget.NewButtonWithIcon("清空", theme.CancelIcon(), nil),
 	}
 
-	tabData.SelectButton.Disable()
-	tabData.DeselectButton.Disable()
+	// 绑定文本
+	tabData.QueryLabel.Bind(tabData.QueryText)
+	tabData.CheckLabel.Bind(tabData.CheckText)
+	tabData.QueryText.Set("点击查询、加载教材信息")
+	tabData.CheckText.Set("电子教材")
 
-	buttonContainer := container.NewCenter(container.NewHBox(tabData.SelectButton, tabData.DeselectButton))
+	tabData.SelectAllButton.Disable()
+	tabData.CancelAllButton.Disable()
+
+	buttonContainer := container.NewCenter(container.NewHBox(tabData.SelectAllButton, tabData.CancelAllButton))
 	bottom := container.NewVBox(widget.NewSeparator(), buttonContainer)
-	left := container.NewBorder(tabData.StatsLabel, bottom, nil, nil, tabData.CheckGroup)
+	left := container.NewBorder(tabData.CheckLabel, bottom, nil, nil, tabData.CheckGroup)
 
-	right := initRightPart(w, optionData, tabData, name, isLocal, arrayLen)
-	return container.NewBorder(nil, nil, nil, nil, container.NewHSplit(left, right))
-}
-
-func initRightPart2(w fyne.Window, optionData binding.StringList, tabData OptionTabData, name string, isLocal bool, arrayLen int) *fyne.Container {
-	/*
-	课程列表 解析：
-	data_version.json -> part_10x.json (得到教材信息， 没有tag_paths) -> "id" 字段 得到parts.json->part_100.json 课程单元
-	national_lesson_tag.json -> 教材层级结构
-	*/
-
-	comboContainers := make([]fyne.CanvasObject, arrayLen)
-
-	initTabData := false
-	bookItemsHistory := make([]dl.BookItem, arrayLen+1)
-	placeholders := []string{"㊀", "㊁", "㊂", "㊃", "㊄", "㊅", "㊆", "㊇", "㊈", "㊉"}
-
-	for i := range tabData.LabelArray {
-		tabData.LabelArray[i] = widget.NewLabel(placeholders[i])
-		tabData.ComboboxArray[i] = widget.NewSelect([]string{}, nil)
-		tabData.ComboboxArray[i].Disable()
-		comboContainers[i] = container.NewBorder(nil, nil, tabData.LabelArray[i], nil, tabData.ComboboxArray[i])
-	}
-	comboboxContainer := container.NewVBox(comboContainers...)
-	queryButton := widget.NewButtonWithIcon("查询", theme.SearchIcon(), nil)
-	infoLabel := widget.NewLabel("点击查询加载课程教学内容")
-
-	queryButton.OnTapped = func() {
-		infoLabel.SetText("加载中...")
-		index := 0
-
-		if !initTabData {
-			bookBase := dl.FetchRawData2(name, isLocal)
-			if bookBase.Name != "" {
-				bookItemsHistory[index] = bookBase
-				initTabData = true
-			}
-		}
-		if initTabData {
-			infoLabel.SetText("请选择课程")
-			queryButton.SetText("重置")
-
-			updateComboboxes(tabData, index, optionData, w, placeholders, bookItemsHistory)
-		} else {
-			infoLabel.SetText("课程数据加载失败，稍后重试")
-			dialog.ShowError(fmt.Errorf("数据初始化失败"), w)
-		}
-	}
-
-	bottom := container.NewVBox(widget.NewSeparator(), container.NewCenter(queryButton))
-	right := container.NewBorder(infoLabel, bottom, nil, nil, comboboxContainer)
-	return right
-}
-
-func CreateClassroomOptionsTab(w fyne.Window, optionData binding.StringList, name string, isLocal bool, arrayLen int) *fyne.Container {
-	var tabData = OptionTabData{
-		StatsLabel:     widget.NewLabel("课程教学"),
-		CheckGroup:     widget.NewCheckGroup(nil, nil),
-		SelectButton:   widget.NewButtonWithIcon("全选", theme.ConfirmIcon(), nil),
-		DeselectButton: widget.NewButtonWithIcon("清空", theme.CancelIcon(), nil),
-		LabelArray:     make([]*widget.Label, arrayLen),
-		ComboboxArray:  make([]*widget.Select, arrayLen),
-	}
-
-	tabData.SelectButton.Disable()
-	tabData.DeselectButton.Disable()
-
-	buttonContainer := container.NewCenter(container.NewHBox(tabData.SelectButton, tabData.DeselectButton))
-	bottom := container.NewVBox(widget.NewSeparator(), buttonContainer)
-	left := container.NewBorder(tabData.StatsLabel, bottom, nil, nil, tabData.CheckGroup)
-
-	right := initRightPart2(w, optionData, tabData, name, isLocal, arrayLen)
+	right := initRightPart(w, linkItemMaps, tabData, name, isLocal, arrayLen)
 	return container.NewBorder(nil, nil, nil, nil, container.NewHSplit(left, right))
 }

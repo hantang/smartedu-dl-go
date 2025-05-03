@@ -217,3 +217,25 @@ func ExtractResources(links []string, formatList []string, random bool, useBacku
 	}
 	return result
 }
+
+func GenerateURLFromID(linkItems []LinkItem) []string {
+	// book_id/link转化成URL
+	metaInfoList := []ResourceMetaInfo{InputInfo, TchMaterialInfo, SyncClassroomInfo, SyncClassroomInfo2}
+	urls := []string{}
+
+	for _, linkItem := range linkItems {
+		for _, metaInfo := range metaInfoList {
+			if linkItem.Type == metaInfo.Type {
+				example_url := metaInfo.Detail
+				url := linkItem.Link
+				if example_url != "" {
+					url = fmt.Sprintf(example_url, url)
+				}
+				urls = append(urls, url)
+				break
+			}
+		}
+	}
+
+	return urls
+}

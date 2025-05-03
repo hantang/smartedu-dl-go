@@ -131,7 +131,7 @@ func (dm *DownloadManager) StartDownload(downloadButton *widget.Button, download
 		fyne.DoAndWait(func() {
 			dm.statusLabel.SetText(fmt.Sprintf("下载完成：成功/失败 = %d/%d", successCount, failedCount))
 			dialog.NewInformation("完成", "文件下载完成\n"+statsInfo, dm.window).Show()
-	
+
 			downloadButton.Enable()
 			downloadVideoButton.Enable()
 		})

@@ -5,7 +5,6 @@ import (
 
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -40,17 +39,20 @@ func InitUI(isLocal bool) {
 	)
 
 	// Tab container
-	optionMaterialData := binding.NewStringList()
-	optionClassroomData := binding.NewStringList()
-	inputData := binding.NewString()
+	tabs := dl.TAB_NAMES
+	linkItemMaps := make(map[string][]dl.LinkItem)
+	for _, name := range tabs {
+		linkItemMaps[name] = []dl.LinkItem{}
+	}
+
 	tabContainer := container.NewAppTabs(
-		container.NewTabItemWithIcon(dl.TAB_NAMES[1], theme.ListIcon(), CreateOptionsTab(w, optionMaterialData, dl.TAB_NAMES[1], isLocal, arrayLen)),
-		container.NewTabItemWithIcon(dl.TAB_NAMES[2], theme.MediaVideoIcon(), CreateClassroomOptionsTab(w, optionClassroomData, dl.TAB_NAMES[2], isLocal, 7)),
-		container.NewTabItemWithIcon(dl.TAB_NAMES[0], theme.ContentPasteIcon(), CreateInputTab(w, inputData)),
+		container.NewTabItemWithIcon(tabs[1], theme.ListIcon(), CreateMaterialOptionsTab(w, linkItemMaps, tabs[1], isLocal, arrayLen)),
+		container.NewTabItemWithIcon(tabs[2], theme.MediaVideoIcon(), CreateClassroomOptionsTab(w, linkItemMaps, tabs[2], isLocal, 7)),
+		container.NewTabItemWithIcon(tabs[0], theme.ContentPasteIcon(), CreateInputTab(w, linkItemMaps, tabs[0], false, 0)),
 	)
 
 	// Bottom operation area
-	operationArea := CreateOperationArea(w, tabContainer, inputData, optionMaterialData, optionClassroomData)
+	operationArea := CreateOperationArea(w, tabContainer, linkItemMaps)
 
 	content := container.NewBorder(toolbar, operationArea, nil, nil, tabContainer)
 	w.SetContent(content)

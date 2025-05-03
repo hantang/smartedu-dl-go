@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"math/rand"
 	"os"
 	"path"
 	"path/filepath"
@@ -202,16 +203,6 @@ func readRawData(name string, local bool) ([]byte, [][]byte) {
 	return tagData, dataList
 }
 
-func GenerateURLFromID(bookIdList []string) []string {
-	// book_id转化成URL
-	example_url := TchMaterialInfo.Detail
-	urls := []string{}
-	for _, book_id := range bookIdList {
-		urls = append(urls, fmt.Sprintf(example_url, book_id))
-	}
-	return urls
-}
-
 func ParseHierarchies2(level int, tagItem TagItem, tagMap map[string]string) BookItem {
 	var bookItem BookItem
 	hierarchies := tagItem.Hierarchies
@@ -271,14 +262,7 @@ func UpdateHierarchies2(bookBase *BookItem, tagMap map[string]string, docPDFList
 				}
 			}
 
-			if flag && i+1 < len(tagPath){
-				// if i+1 == len(tagPath) {
-				// 	// 不需要新增，只需更新
-				// 	currentItem.BookName = doc.Title
-				// 	currentItem.BookID = doc.ID
-				// 	currentItem.IsBook = true
-				// 	break
-				// }
+			if flag && i+1 < len(tagPath) {
 				continue
 			}
 
@@ -348,12 +332,8 @@ func Query2(bookItem BookItem) (string, []BookOption, []BookItem) {
 	children := bookItem.Children
 	bookOptions := []BookOption{}
 
-	if children != nil && children[0].IsBook {
-		for _, child := range children {
-			name := child.BookName
-			name = strings.ReplaceAll(name, "•", "·")
-			bookOptions = append(bookOptions, BookOption{child.BookID, "《" + name + "》"})
-		}
+	if len(children) > 0 && children[0].IsBook {
+		bookOptions = queryBooks(bookItem, []string{})
 		children = nil
 	} else {
 		for _, child := range children {
@@ -365,4 +345,142 @@ func Query2(bookItem BookItem) (string, []BookOption, []BookItem) {
 	}
 
 	return title, bookOptions, children
+}
+
+func queryBooks(bookItem BookItem, prefixList []string) []BookOption {
+	bookOptions := []BookOption{}
+	prefixList = append(prefixList, bookItem.TagName)
+	for _, child := range bookItem.Children {
+		if child.IsBook {
+			name := child.BookName
+			name = strings.ReplaceAll(name, "•", "·")
+			fullname := "《" + name + "》"
+			prefix := ""
+			if len(prefixList) > 1 {
+				prefix = "[" + strings.Join(prefixList, "-") + "] "
+			}
+			fullname = prefix + fullname
+			bookOptions = append(bookOptions, BookOption{child.BookID, fullname})
+		} else {
+			more := queryBooks(child, prefixList)
+			bookOptions = append(bookOptions, more...)
+		}
+	}
+	return bookOptions
+}
+
+func ParseCourseID(courseID string) []CourseToc {
+	// b7062df1-f929-458e-964c-d778f89ca255\
+	server := SERVER_LIST[rand.Intn(len(SERVER_LIST))]
+	var courseInfo []DataCourseInfo        //
+	var courseChapters []DataCourseChapter // 课程单元 array + tree
+	var courseToc []CourseToc
+
+	pattern := "https://%s.ykt.cbern.com.cn/zxx/ndrs/national_lesson/teachingmaterials/%s/resources/parts.json"
+	pattern2 := "https://%s.ykt.cbern.com.cn/zxx/ndrv2/national_lesson/trees/%s.json"
+
+	url := fmt.Sprintf(pattern, server, courseID)
+	slog.Debug(fmt.Sprintf("URL = %s", url))
+	data, err, _ := FetchJsonData(url) // parts.json
+	if err != nil {
+		return courseToc
+	}
+
+	var urls []string
+	err = json.Unmarshal(data, &urls) // part_100.json
+	if err != nil {
+		slog.Warn(fmt.Sprintf("error = %s", err))
+		return courseToc
+	}
+	slog.Debug(fmt.Sprintf("urls = %s", urls))
+
+	for _, url := range urls {
+		data, err, _ := FetchJsonData(url)
+		if err != nil {
+			continue
+		}
+		var units []DataCourseInfo
+		if err := json.Unmarshal(data, &units); err != nil {
+			continue
+		}
+		courseInfo = append(courseInfo, units...)
+	}
+	slog.Debug(fmt.Sprintf("courseInfo = %d; ids = %d", len(courseInfo), len(courseInfo[0].TeachIDs)))
+
+	if len(courseInfo) == 0 || len(courseInfo[0].TeachIDs) == 0 {
+		return courseToc
+	}
+
+	teachID := courseInfo[0].TeachIDs[0] // = tree_id
+	url = fmt.Sprintf(pattern2, server, teachID)
+	data, err, _ = FetchJsonData(url)
+	if err != nil {
+		return courseToc
+	}
+	if err := json.Unmarshal(data, &courseChapters); err != nil {
+		return courseToc
+	}
+
+	courseToc = initChapters(courseInfo, courseChapters)
+	return courseToc
+}
+
+func createCourseDict(courseInfo []DataCourseInfo) map[string]DataCourseInfo {
+	courseDict := make(map[string]DataCourseInfo)
+	for _, course := range courseInfo {
+		chapters := course.ChapterPaths
+		if course.ResourceType == "national_lesson" || course.ResourceType == "elite_lesson" {
+			for _, chapter := range chapters {
+				courseDict[chapter] = course
+			}
+		}
+	}
+	return courseDict
+}
+
+func getChapterNode(courseChapters []DataCourseChapter, courseDict map[string]DataCourseInfo, parentTitles []string) []CourseItem {
+	var courseItems []CourseItem
+	for _, chapter := range courseChapters {
+		newParentTitles := append(parentTitles, chapter.Title)
+		if chapter.Children == nil {
+			if value, ok := courseDict[chapter.NodePath]; ok {
+				var parent []string
+				if len(parentTitles) > 0 {
+					parent = append(parent, parentTitles[len(parentTitles)-1])
+				}
+				fullTitle := strings.Join(append(parent, chapter.Title), " / ") // value.Title
+
+				item := CourseItem{
+					Title:        fullTitle,
+					NodeTitle:    chapter.Title,
+					NodeParents:  parentTitles,
+					NodeID:       chapter.ID,
+					NodePath:     chapter.NodePath,
+					ResourceType: value.ResourceType,
+					CourseID:     value.ID,
+					CourseTitle:  value.Title,
+				}
+				courseItems = append(courseItems, item)
+			}
+		} else {
+			more := getChapterNode(chapter.Children, courseDict, newParentTitles)
+			courseItems = append(courseItems, more...)
+		}
+	}
+	return courseItems
+}
+
+func initChapters(courseInfo []DataCourseInfo, courseChapters []DataCourseChapter) []CourseToc {
+	var courseToc []CourseToc
+	courseDict := createCourseDict(courseInfo)
+	for index, chapter := range courseChapters {
+		items := getChapterNode(chapter.Children, courseDict, []string{})
+		toc := CourseToc{
+			Index:    index,
+			Title:    chapter.Title,
+			Children: items,
+		}
+		courseToc = append(courseToc, toc)
+	}
+	return courseToc
 }
