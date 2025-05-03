@@ -2,8 +2,8 @@ package ui
 
 import (
 	"fmt"
-	"strings"
 	"log/slog"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"

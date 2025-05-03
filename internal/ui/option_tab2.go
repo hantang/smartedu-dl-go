@@ -77,11 +77,11 @@ func createCheckboxes2(name string, tabData OptionTabData, linkItemMaps map[stri
 		options = append(options, opt.Title)
 		optionMap[opt.Title] = opt
 	}
-	
+
 	tabData.CheckText.Set(fmt.Sprintf("%s（共%d项）：", info, len(options)))
 	tabData.CheckGroup.Options = options
 	tabData.CheckGroup.SetSelected([]string{})
-	tabData.CheckGroup.OnChanged = func(items []string) {	
+	tabData.CheckGroup.OnChanged = func(items []string) {
 		linkItemMaps[name] = []dl.LinkItem{}
 		for _, item := range items {
 			linkItem := dl.LinkItem{
