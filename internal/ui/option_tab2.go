@@ -138,7 +138,8 @@ func CreateClassroomOptionsTab(w fyne.Window, linkItemMaps map[string][]dl.LinkI
 	buttonContainer := container.NewCenter(container.NewHBox(tabData.SelectAllButton, tabData.CancelAllButton))
 	bottom := container.NewVBox(widget.NewSeparator(), buttonContainer)
 	top := container.NewVBox(tabData.CheckLabel, tabData.Combobox)
-	leftDown := container.NewBorder(top, bottom, nil, nil, tabData.CheckGroup)
+	scrollCheckGroup := container.NewScroll(tabData.CheckGroup)
+	leftDown := container.NewBorder(top, bottom, nil, nil, scrollCheckGroup)
 
 	leftTop := container.NewBorder(tabData.RadioStatsLabel, nil, nil, nil, tabData.RadioGroup)
 	left := container.NewVSplit(leftTop, leftDown)

@@ -21,7 +21,12 @@ var FORMAT_LIST = []FormatData{
 	{"图片", "jpg", true, false},
 	// {"视频", "m3u8", false, false},
 	{"白板", "whiteboard", true, false},
+	{"字幕", "srt", true, false},
 }
+
+// folder
+
+var FORMAT_VIDEO = []string{"m3u8"}
 
 var TAB_NAMES = []string{
 	"输入链接",
@@ -200,16 +205,33 @@ type ResourceItemExt struct {
 
 // 资源文件
 type ResourceItem struct {
-	TiItems      []TiItem `json:"ti_items"`
-	Title        string   `json:"title"`
-	ResourceType string   `json:"resource_type_code_name"`
+	TiItems          []TiItem `json:"ti_items"`
+	Title            string   `json:"title"`
+	ResourceType     string   `json:"resource_type_code_name"`
+	CustomProperties struct {
+		OriginalTitle string `json:"original_title"`
+	} `json:"custom_properties"`
 }
 
 // 资源文件中ti_items
 type TiItem struct {
-	TiStorages []string `json:"ti_storages"`
-	TiFormat   string   `json:"ti_format"`
-	TiSize     int64    `json:"ti_size"`
+	TiStorages       []string `json:"ti_storages"`
+	TiFormat         string   `json:"ti_format"`
+	LcTiFormat       string   `json:"lc_ti_format"`
+	TiSize           int64    `json:"ti_size"`
+	TiFileFlag       string   `json:"ti_file_flag"`
+	TiIsSourceFile   bool     `json:"ti_is_source_file"`
+	CustomProperties struct {
+		Encryption     string      `json:"encryption"`
+		Identification bool        `json:"identification"`
+		Requirements   []SubTiItem `json:"requirements"`
+	} `json:"custom_properties"`
+}
+
+type SubTiItem struct {
+	Name  string `json:"name"`
+	Type  string `json:"type"`
+	Value string `json:"value"`
 }
 
 // tch_material_tag.json 结构

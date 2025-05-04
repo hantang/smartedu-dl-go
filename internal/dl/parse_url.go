@@ -137,10 +137,18 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 
 	// 处理每个ResourceItem
 	for i, item := range items {
-		title := item.Title
-		if title == "" && item.ResourceType != "" {
-			title = fmt.Sprintf("%s-%03d", item.ResourceType, i)
+		title := item.CustomProperties.OriginalTitle
+		if title == "" {
+			title = item.Title
 		}
+		if title == "" {
+			if item.ResourceType != "" {
+				title = fmt.Sprintf("%s-%03d", item.ResourceType, i)
+			} else {
+				title = fmt.Sprintf("%s-%03d", "未命名", i)
+			}
+		}
+
 		var link string
 		var rawLink string
 		var format string

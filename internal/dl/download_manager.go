@@ -37,7 +37,7 @@ func NewDownloadManager(window fyne.Window, progressBar *widget.ProgressBar, sta
 	}
 }
 
-func (dm *DownloadManager) StartDownload(downloadButton *widget.Button, downloadVideoButton *widget.Button, headers map[string]string, enableLog bool) {
+func (dm *DownloadManager) StartDownload(downloadButton *widget.Button, downloadVideoButton *widget.Button, headers map[string]string, enableLog bool, isVideo bool) {
 	if err := os.MkdirAll(dm.downloadsDir, 0755); err != nil {
 		dialog.ShowError(fmt.Errorf("下载目录创建失败：%v", err), dm.window)
 		dm.statusLabel.SetText("创建下载目录失败")
@@ -88,7 +88,14 @@ func (dm *DownloadManager) StartDownload(downloadButton *widget.Button, download
 	for _, file := range dm.links {
 		wg.Add(1)
 		go func(file LinkData) {
-			isSuccess, outputPath := dm.downloadFile(&wg, file, &downloadedBytes, headers)
+			// TODO
+			var isSuccess bool
+			var outputPath string
+			if isVideo {
+				isSuccess, outputPath = dm.downloadVideoFile(&wg, file, &downloadedBytes, headers)
+			} else {
+				isSuccess, outputPath = dm.downloadFile(&wg, file, &downloadedBytes, headers)
+			}
 			downloadedFiles.Add(int64(1))
 			if isSuccess {
 				successCount++
@@ -160,6 +167,9 @@ func saveLogFile(downloadsDir string, results []string) {
 
 func getSavePath(downloadsDir string, title string, suffix string) string {
 	index := 0
+	if suffix == "m3u8" { // TODO
+		suffix = "ts"
+	}
 	filename := fmt.Sprintf("%s.%s", title, suffix)
 	for {
 		outputPath := filepath.Join(downloadsDir, filename)
@@ -223,6 +233,32 @@ func (dm *DownloadManager) downloadFile(wg *sync.WaitGroup, file LinkData, downl
 			}
 			downloadedBytes.Add(int64(n))
 		}
+	}
+	return true, outputPath
+}
+
+func (dm *DownloadManager) downloadVideoFile(wg *sync.WaitGroup, file LinkData, downloadedBytes *atomic.Int64, headers map[string]string) (bool, string) {
+	defer wg.Done()
+	url := file.URL
+	for _, v := range headers {
+		if v != "" {
+			url = file.RawURL
+			break
+		}
+	}
+	slog.Debug(fmt.Sprintf("URL = %s", url))
+	outputPath := getSavePath(dm.downloadsDir, file.Title, file.Format)
+	out, err := os.Create(outputPath)
+	if err != nil {
+		slog.Warn(fmt.Sprintf("创建文件 %s 出错：%v\n", outputPath, err))
+		return false, outputPath
+	}
+	defer out.Close()
+
+	err = DownloadM3U8(url, outputPath, headers, downloadedBytes)
+	if err != nil {
+		slog.Warn(fmt.Sprintf("下载出错 %v", err))
+		return false, outputPath
 	}
 	return true, outputPath
 }

@@ -99,6 +99,10 @@ func extractDownloadLinks(w fyne.Window, tab *container.AppTabs, linkItemMaps ma
 	return filteredURLs
 }
 
+// CreateOperationArea returns a container with UI elements for downloading resources.
+// The returned container contains elements for selecting resources, choosing a save path, logging in, and starting the download.
+// The download buttons are disabled while the download is in progress.
+// Once the download is started, the progress bar and label are updated to show the progress and total count of resources.
 func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map[string][]dl.LinkItem) *fyne.Container {
 	random := true
 	// Progress bar
@@ -202,7 +206,7 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map
 
 		// 下载任务 更新进度条
 		downloadManager := dl.NewDownloadManager(w, progressBar, progressLabel, downloadPath, resourceURLs)
-		downloadManager.StartDownload(downloadButton, downloadVideoButton, headers, logCheckbox.Checked)
+		downloadManager.StartDownload(downloadButton, downloadVideoButton, headers, logCheckbox.Checked, false)
 	}
 
 	downloadVideoButton.OnTapped = func() {
@@ -212,14 +216,14 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map
 		if len(filteredURLs) == 0 {
 			return
 		}
-		// downloadPath := extractDownloadInfo(w, pathEntry, defaultPath)
-		// headers := initHeaders(loginEntry)
+		downloadPath := extractDownloadInfo(w, pathEntry, defaultPath)
+		headers := initHeaders(loginEntry)
 
 		// 下载进行中禁止再次点击
 		downloadButton.Disable()
 		downloadVideoButton.Disable()
 
-		formatList := []string{"m3u8"}
+		formatList := dl.FORMAT_VIDEO
 		resourceURLs := dl.ExtractResources(filteredURLs, formatList, random, backupCheckbox.Checked)
 		if len(resourceURLs) == 0 {
 			dialog.NewError(fmt.Errorf("未解析到有效资源"), w).Show()
@@ -227,6 +231,10 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map
 			downloadVideoButton.Enable()
 			return
 		}
+
+		// 下载视频
+		downloadManager := dl.NewDownloadManager(w, progressBar, progressLabel, downloadPath, resourceURLs)
+		downloadManager.StartDownload(downloadButton, downloadVideoButton, headers, logCheckbox.Checked, true)
 	}
 
 	downloadPart := container.NewCenter(
