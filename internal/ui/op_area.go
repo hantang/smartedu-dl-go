@@ -53,8 +53,16 @@ func initHeaders(loginEntry *widget.Entry) map[string]string {
 	if loginEntry.Text != "" {
 		authInfo = loginEntry.Text
 	}
-	headers := map[string]string{"x-nd-auth": authInfo}
-	slog.Info(fmt.Sprintf("headers is %v", headers))
+	if authInfo != "" && !strings.HasPrefix(authInfo, "MAC id") {
+		// only acess token
+		authInfo = fmt.Sprintf(`MAC id="%s",nonce="0",mac="0"`, authInfo)
+	}
+
+	headers := map[string]string{}
+	if authInfo != "" {
+		headers["x-nd-auth"] = authInfo
+	}
+	slog.Debug(fmt.Sprintf("headers is %v", headers))
 	return headers
 }
 
@@ -120,7 +128,7 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map
 	// user log info
 	loginLabel := widget.NewLabelWithStyle("登录信息: ", fyne.TextAlign(fyne.TextAlignLeading), fyne.TextStyle{Bold: true})
 	loginEntry := widget.NewEntry()
-	loginEntry.SetPlaceHolder("请在浏览器登录后通过DevTools查找X-Nd-Auth值并在此填写，“MAC id=XXX……”")
+	loginEntry.SetPlaceHolder("请在浏览器登录账号后，填写X-Nd-Auth值或者Access Token")
 
 	// Save path display and button
 	defaultPath, _ := os.UserHomeDir()
@@ -194,8 +202,9 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map
 			resultStrBuilder.WriteString(fmt.Sprintf("%s=%d ", formatDict[key], value))
 		}
 		resultStr := resultStrBuilder.String()
-		progressLabel.SetText(fmt.Sprintf("共解析到%d个资源：%s", len(resourceURLs), resultStr))
-		slog.Info(fmt.Sprintf("共解析到%d个资源：%s", len(resourceURLs), resultStr))
+		infoStr := fmt.Sprintf("共解析到%d个资源：%s", len(resourceURLs), resultStr)
+		progressLabel.SetText(infoStr)
+		slog.Info(infoStr)
 
 		if len(resourceURLs) == 0 {
 			dialog.NewError(fmt.Errorf("未解析到有效资源"), w).Show()

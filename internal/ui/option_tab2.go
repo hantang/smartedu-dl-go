@@ -51,7 +51,7 @@ func radioCallback(w fyne.Window, name string, tabData OptionTabData, linkItemMa
 			options = append(options, toc.Title)
 			optionToc[toc.Title] = toc
 		}
-		slog.Info(fmt.Sprintf("Radio options = %s", options))
+
 		if len(options) == 0 {
 			tabData.CheckText.Set("课程单元为空")
 			dialog.ShowError(fmt.Errorf("课程单元为空，请查询其他课程"), w)

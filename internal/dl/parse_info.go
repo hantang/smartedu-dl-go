@@ -57,7 +57,8 @@ func ParseData(data []byte) (map[string]string, map[string]DocPDFData, []DocPDFD
 	docPDFMap := map[string]DocPDFData{}
 	docPDFList := []DocPDFData{}
 
-	// 拼接字段顺序 "tagView" 同步课资源视图 / 学段 / 年级 / 学科 / 版本  / 册次 / 新旧教材
+	// 拼接字段顺序 "tagView" 同步课资源视图
+	// 学段 / 年级 / 学科 / 版本  / 册次 / 新旧教材
 	dimIDOrders := []string{"zxxxd", "zxxnj", "zxxxk", "zxxbb", "zxxcc", "zxxxjjc"}
 
 	for _, item := range DocItemList {
@@ -302,7 +303,7 @@ func FetchRawData2(name string, local bool) BookItem {
 
 	tagBase := ParseHierarchies(tagData)
 	tagMap, _, docPDFList := ParseDataList(dataList)
-	slog.Info(fmt.Sprintf("total docPDFList = %d", len(docPDFList)))
+	slog.Debug(fmt.Sprintf("total docPDFList = %d", len(docPDFList)))
 
 	if len(tagBase.Hierarchies) > 0 {
 		count := len(tagBase.Hierarchies[0].Children)
@@ -392,7 +393,7 @@ func ParseCourseID(courseID string) []CourseToc {
 		slog.Warn(fmt.Sprintf("error = %s", err))
 		return courseToc
 	}
-	slog.Debug(fmt.Sprintf("urls = %s", urls))
+	slog.Debug(fmt.Sprintf("course id urls = %s", urls))
 
 	for _, url := range urls {
 		data, err, _ := FetchJsonData(url)

@@ -73,7 +73,10 @@ func getKeyFromURL(url, key string, headers map[string]string) (string, error) {
 }
 
 func getDecryptionKey(keyURL, keyID string, headers map[string]string) ([]byte, error) {
-	// Get nonce
+	// ts视频解码部分参考
+	// - https://github.com/52beijixing/smartedu-download/blob/main/utils/download.py
+	// - https://basic.smartedu.cn/fish/video/videoplayer.min.js
+
 	signURL := keyURL + "/signs"
 	nonce, err := getKeyFromURL(signURL, "nonce", headers)
 	if err != nil {

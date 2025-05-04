@@ -149,7 +149,6 @@ func saveLogFile(downloadsDir string, results []string) {
 	filename := "log-smartedudl.txt"
 	savePath := filepath.Join(downloadsDir, filename)
 	content := strings.Join(append(results, ""), "\n")
-
 	slog.Info(fmt.Sprintf("Save log to %s", savePath))
 
 	file, err := os.OpenFile(savePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
