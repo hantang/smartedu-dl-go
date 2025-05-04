@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -141,6 +142,13 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 		if title == "" {
 			title = item.Title
 		}
+		if item.CustomProperties.AliasName != "" {
+			if title != "" {
+				title = title + "-" + item.CustomProperties.AliasName
+			} else {
+				title = item.CustomProperties.AliasName
+			}
+		}
 		if title == "" {
 			if item.ResourceType != "" {
 				title = fmt.Sprintf("%s-%03d", item.ResourceType, i)
@@ -171,7 +179,19 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 			}
 
 			format = tiItem.TiFormat
-			size = tiItem.TiSize
+			size = tiItem.TiSize // TODO
+			if len(tiItem.CustomProperties.Requirements) > 0 {
+				for _, reqItem := range tiItem.CustomProperties.Requirements {
+					// 视频大小
+					if reqItem.Name == "total_size" {
+						value, err := strconv.ParseInt(reqItem.Value, 10, 64) // 返回 int 类型
+						if err == nil {
+							size = value
+						}
+					}
+				}
+			}
+
 			if title == "" {
 				title = fmt.Sprintf("%s-%03d", strings.ToUpper(format), i)
 			}

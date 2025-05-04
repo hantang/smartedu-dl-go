@@ -210,6 +210,7 @@ type ResourceItem struct {
 	ResourceType     string   `json:"resource_type_code_name"`
 	CustomProperties struct {
 		OriginalTitle string `json:"original_title"`
+		AliasName     string `json:"alias_name"`
 	} `json:"custom_properties"`
 }
 
