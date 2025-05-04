@@ -7,7 +7,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
-	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -54,7 +53,8 @@ func radioCallback(w fyne.Window, name string, tabData OptionTabData, linkItemMa
 
 		if len(options) == 0 {
 			tabData.CheckText.Set("课程单元为空")
-			dialog.ShowError(fmt.Errorf("课程单元为空，请查询其他课程"), w)
+			// TODO 重新在在下拉框选择时后弹出
+			// dialog.ShowError(fmt.Errorf("课程单元为空，请查询其他课程"), w)
 			return
 		} else {
 			tabData.CheckText.Set(fmt.Sprintf("课程单元共%d章", len(options)))

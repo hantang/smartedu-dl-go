@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -31,9 +32,41 @@ func saveJSONToFile(jsonData []byte, filePath string) error {
 	return os.WriteFile(filePath, indentedJSON, 0644)
 }
 
+func filterTags(tags []DocTag) []DocTag {
+	hasHighSchool := false
+	outputTags := make([]DocTag, 0)
+	pattern := regexp.MustCompile(`[一二三四五六七八九至]+年级`)
+
+	for _, tag := range tags {
+		if tag.TagDim == "zxxxd" && tag.TagName == "高中" {
+			hasHighSchool = true
+		}
+		if tag.TagDim != "zxxnj" {
+			outputTags = append(outputTags, tag)
+		}
+	}
+	// 学段=高中则忽略“年级”字段
+	if !hasHighSchool {
+		for _, tag := range tags {
+			// 只保留一至九年级，否则忽略此数据
+			if tag.TagDim == "zxxnj" && !pattern.MatchString(tag.TagName) {
+				return []DocTag{}
+			}
+			outputTags = append(outputTags, tag)
+		}
+	}
+
+	return outputTags
+}
+
 func concatTagPath(tags []DocTag, dimIDOrders []string) string {
 	dimToTag := make(map[string]string)
-	for _, tag := range tags {
+	tags2 := filterTags(tags)
+	if len(tags2) == 0 {
+		return ""
+	}
+
+	for _, tag := range tags2 {
 		dimToTag[tag.TagDim] = tag.TagID
 	}
 
@@ -59,6 +92,8 @@ func ParseData(data []byte) (map[string]string, map[string]DocPDFData, []DocPDFD
 
 	// 拼接字段顺序 "tagView" 同步课资源视图
 	// 学段 / 年级 / 学科 / 版本  / 册次 / 新旧教材
+	// 备注：学段=高中，忽略年级
+	// TODO 新旧教材
 	dimIDOrders := []string{"zxxxd", "zxxnj", "zxxxk", "zxxbb", "zxxcc", "zxxxjjc"}
 
 	for _, item := range DocItemList {
@@ -69,7 +104,11 @@ func ParseData(data []byte) (map[string]string, map[string]DocPDFData, []DocPDFD
 		tagPaths := item.TagPaths
 		if tagPaths == nil {
 			// 仅教材列表有tag_paths，课程没有
-			tagPaths = []string{concatTagPath(item.TagList, dimIDOrders)}
+			newPath := concatTagPath(item.TagList, dimIDOrders)
+			if newPath == "" {
+				continue
+			}
+			tagPaths = []string{newPath}
 		}
 
 		for _, tagPath := range tagPaths {
@@ -398,18 +437,32 @@ func ParseCourseID(courseID string) []CourseToc {
 	for _, url := range urls {
 		data, err, _ := FetchJsonData(url)
 		if err != nil {
+			slog.Warn(fmt.Sprintf("Failed to fetch data from %s: %v", url, err))
 			continue
 		}
+
+		if len(data) == 0 {
+			slog.Warn(fmt.Sprintf("Empty data received from %s", url))
+			continue
+		}
+
 		var units []DataCourseInfo
 		if err := json.Unmarshal(data, &units); err != nil {
+			slog.Warn(fmt.Sprintf("Failed to unmarshal data from %s: %v", url, err))
 			continue
 		}
+
+		if len(units) == 0 {
+			slog.Warn(fmt.Sprintf("No course info found in data from %s", url))
+			continue
+		}
+
 		courseInfo = append(courseInfo, units...)
 	}
-	slog.Debug(fmt.Sprintf("courseInfo = %d; ids = %d", len(courseInfo), len(courseInfo[0].TeachIDs)))
 
-	if len(courseInfo) == 0 || len(courseInfo[0].TeachIDs) == 0 {
-		return courseToc
+	if len(courseInfo) == 0 {
+		slog.Warn("No course information found after processing all URLs")
+		return []CourseToc{}
 	}
 
 	teachID := courseInfo[0].TeachIDs[0] // = tree_id
