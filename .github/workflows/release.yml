@@ -6,7 +6,7 @@ on:
       - "v*"
 
 env:
-  GOVERSION: "1.23.3"
+  GOVERSION: "stable"
   VERSION: "0.0.0"
   NAME: "smartedudl"
   FULLNAME: "SmarteduDL"

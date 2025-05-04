@@ -8,7 +8,7 @@ on:
       - "**/*.go"
 
 env:
-  GOVERSION: "1.23.x"
+  GOVERSION: "stable"
 
 jobs:
   lint:
