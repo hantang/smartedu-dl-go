@@ -245,16 +245,11 @@ func (dm *DownloadManager) downloadVideoFile(wg *sync.WaitGroup, file LinkData, 
 			break
 		}
 	}
+
 	slog.Debug(fmt.Sprintf("URL = %s", url))
 	outputPath := getSavePath(dm.downloadsDir, file.Title, file.Format)
-	out, err := os.Create(outputPath)
-	if err != nil {
-		slog.Warn(fmt.Sprintf("创建文件 %s 出错：%v\n", outputPath, err))
-		return false, outputPath
-	}
-	defer out.Close()
 
-	err = DownloadM3U8(url, outputPath, headers, downloadedBytes)
+	err := DownloadM3U8(url, outputPath, headers, downloadedBytes)
 	if err != nil {
 		slog.Warn(fmt.Sprintf("下载出错 %v", err))
 		return false, outputPath

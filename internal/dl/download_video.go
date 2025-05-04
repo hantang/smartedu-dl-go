@@ -12,7 +12,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -276,10 +275,6 @@ func processSegment(segmentURL string, headers map[string]string, key []byte, iv
 
 // downloads a M3U8 video and save it to MP4 file
 func DownloadM3U8(m3u8URL, savePath string, headers map[string]string, downloadedBytes *atomic.Int64) error {
-	if err := os.MkdirAll(filepath.Dir(savePath), 0755); err != nil {
-		return fmt.Errorf("failed to create directory: %w", err)
-	}
-
 	req, err := http.NewRequest("GET", m3u8URL, nil)
 	if err != nil {
 		return fmt.Errorf("创建 GET 请求失败: %w", err)
@@ -320,7 +315,7 @@ func DownloadM3U8(m3u8URL, savePath string, headers map[string]string, downloade
 
 	saveFile, err := os.Create(savePath)
 	if err != nil {
-		return fmt.Errorf("创建文件失败: %w", err)
+		return fmt.Errorf("创建文件(%s)失败: %w", savePath, err)
 	}
 	defer saveFile.Close()
 
