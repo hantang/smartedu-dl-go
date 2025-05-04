@@ -27,14 +27,14 @@
 
 - [x] 链接输入列表下载(`v0.1.x`)
 - [x] 教材查询列表下载(`v0.2.x`)
-    - 支持登录信息配置（devtools/network选择pdf文件找到Request Headers中`x-nd-auth`参数）
-    - 增加日志统计（结果保存在`log-smartedudl.txt`）
-    - 增加备用解析链接
-    - 已知问题：
-      - 部分音频下载可能失败（包括已配置登录信息）；
-      - 非登录状态部分资源可能下载失败或下载的是旧版教材；
-      - 新增备用解析，可能导致下载同一个下载多个对应PDF（可能不完全相同）。
-
+  - 支持登录信息配置（devtools/network选择pdf文件找到Request Headers中`x-nd-auth`参数）
+  - 增加日志统计（结果保存在`log-smartedudl.txt`）
+  - 增加备用解析链接
+  - 已知问题：
+    - 部分音频下载可能失败（包括已配置登录信息）；
+    - 非登录状态部分资源可能下载失败或下载的是旧版教材；
+    - 新增备用解析，可能导致下载同一个下载多个对应PDF（可能不完全相同）。
+  - `v0.2.7` 新增课程包页面（注意部分结果为空），支持视频下载（需要登录，单线程），登录信息可仅配置Access Token
 
 ## 🚨 备注：配置登录信息
 
@@ -49,13 +49,40 @@
     ![](./images/steps.png)
 6. 图形界面在 **登录信息** 框中填入。
 
+或者使用如下 javascript 代码获取`Access Token`（等同 X-ND-AUTH 中 `MAC id` 的值）
+
+```javascript
+// 来自 https://github.com/happycola233/tchMaterial-parser?tab=readme-ov-file#2-设置-access-token
+
+(function () {
+  const authKey = Object.keys(localStorage).find((key) => key.startsWith("ND_UC_AUTH"));
+  if (!authKey) {
+    console.error("未找到 Access Token，请确保已登录！");
+    return;
+  }
+  const tokenData = JSON.parse(localStorage.getItem(authKey));
+  const accessToken = JSON.parse(tokenData.value).access_token;
+  console.log("%cAccess Token: ", "color: green; font-weight: bold", accessToken);
+})();
+```
+
+其中 ND_UC_AUTH 完整取值为`ND_UC_AUTH-{sdpAppId}&ncet-xedu&token`
+
+```javascript
+// 打开页面 https://auth.smartedu.cn/uias/login
+(document.documentElement.outerHTML.match(/sdpAppId: "([\da-fA-F\-]+)"/) || [])[1];
+```
+
 ## 👷 开发
 
 ```shell
 # go语言开发环境
 
 go mod tidy
-go run main
+go run main.go
+
+# 参数：debug打印调试信息；local优先使用本地数据文件
+go run main.go --debug --local
 ```
 
 ## 🌐 相关项目
