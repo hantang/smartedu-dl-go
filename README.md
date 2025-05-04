@@ -36,7 +36,7 @@
     - 新增备用解析，可能导致下载同一个下载多个对应PDF（可能不完全相同）。
   - `v0.2.7` 
     - 新增课程包Tab页面
-    - 支持视频下载（需要登录，单线程）
+    - 支持视频下载（需要登录，单线程，保存格式ts文件）
     - 登录信息可仅配置Access Token
     - 修改字体为“抖音美好体” [:link:](https://github.com/bytedance/fonts)
 
@@ -81,7 +81,12 @@
 
 ### Mac ARM芯片（M1-M4）
 
-开启任何来源（Anywhere）：
+单独配置
+```
+sudo xattr -rd com.apple.quarantine /Applications/应用名.app
+```
+
+或者，开启任何来源（Anywhere）：
 
 1. 终端命令行输入
 ```shell
