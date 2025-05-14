@@ -12,62 +12,65 @@ env:
   FULLNAME: "SmarteduDL"
 
 jobs:
-  package_linux:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+  package:
+    strategy:
+      matrix:
+        os: [linux, windows, macos-arm, macos-intel]
+        include:
+          - os: linux
+            runs-on: ubuntu-latest
+            package-os: linux
+            artifact-suffix: linux
+            package-extension: tar.xz
+            setup: |
+              sudo apt-get update
+              sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev libfuse2 libxkbcommon-dev
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GOVERSION }}
+          - os: windows
+            runs-on: windows-latest
+            package-os: windows
+            artifact-suffix: windows-x64
+            package-extension: zip
+            setup: |
+              pacman -Syu --noconfirm
+              pacman -S --noconfirm git zip mingw-w64-x86_64-toolchain
+            shell: msys2 {0}
 
-      - name: Install Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install gcc libgl1-mesa-dev xorg-dev libfuse2
+          - os: macos-arm
+            runs-on: macos-latest
+            package-os: darwin
+            artifact-suffix: macos-arm64
+            package-extension: zip
+            setup: |
+              # No additional setup needed beyond Xcode
 
-      - name: Install Fyne tool
-        run: go install fyne.io/tools/cmd/fyne@latest
+          - os: macos-intel
+            runs-on: macos-13
+            package-os: darwin
+            artifact-suffix: macos-intel64
+            package-extension: zip
+            setup: |
+              # No additional setup needed beyond Xcode
 
-      - name: Update app version
-        continue-on-error: true
-        run: |
-          GIT_TAG=$(git describe --tags --always)
-          APP_VERSION=${GIT_TAG#v}
-          sed -i -E 's/(\s*Version).*/\1 = "'$APP_VERSION'"/' FyneApp.toml
-
-      - name: Package Fyne app
-        run: fyne package -os linux --release
-
-      - name: Set version
-        run: |
-          VERSION=${{ github.ref_name }}
-          echo "VERSION=${VERSION:1}" >> $GITHUB_ENV
-
-      - name: ZIP package
-        run: mv "${{ env.FULLNAME }}.tar.xz" ${{ env.NAME }}-${{ env.VERSION }}-linux.tar.xz
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.NAME }}-linux
-          path: ${{ env.NAME }}-${{ env.VERSION }}-linux.tar.xz
-          if-no-files-found: error
-          overwrite: true
-
-  package_windows:
-    runs-on: windows-latest
+    runs-on: ${{ matrix.runs-on }}
     defaults:
       run:
-        shell: msys2 {0}
+        shell: ${{ matrix.shell || 'bash' }}
+
     steps:
-      - name: Set MSYS
+      - name: Set up MSYS2 (Windows only)
+        if: matrix.os == 'windows'
         uses: msys2/setup-msys2@v2
         with:
           path-type: inherit
           update: true
 
+      - name: Set up Xcode (macOS only)
+        if: contains(matrix.os, 'macos')
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
       - uses: actions/checkout@v4
 
       - name: Set up Go
@@ -76,149 +79,71 @@ jobs:
           go-version: ${{ env.GOVERSION }}
 
       - name: Install Dependencies
-        run: |
-          pacman -Syu &&
-          pacman --noconfirm -S git zip mingw-w64-x86_64-toolchain
+        if: matrix.setup != ''
+        run: ${{ matrix.setup }}
 
       - name: Install Fyne tool
-        run: go install fyne.io/tools/cmd/fyne@latest
+        run: |
+          go install fyne.io/tools/cmd/fyne@latest
+          fyne version
 
       - name: Update app version
         continue-on-error: true
         run: |
           GIT_TAG=$(git describe --tags --always)
           APP_VERSION=${GIT_TAG#v}
-          sed -i -E 's/(\s*Version).*/\1 = "'$APP_VERSION'"/' FyneApp.toml
+          sed -i.bak -E "s/(\s*Version).*/\1 = \"$APP_VERSION\"/" FyneApp.toml
 
       - name: Package Fyne app
-        run: fyne package -os windows --release
+        run: fyne package -os ${{ matrix.package-os }} --release
 
       - name: Set version
         run: |
           VERSION=${{ github.ref_name }}
           echo "VERSION=${VERSION:1}" >> $GITHUB_ENV
 
-      - name: ZIP package
-        run: zip ${{ env.NAME }}-${{ env.VERSION }}-windows-x64.zip "${{ env.FULLNAME }}.exe"
+      - name: Tar package
+        run: |
+          name=${{ env.NAME }}-${{ env.VERSION }}-${{ matrix.artifact-suffix }}.${{ matrix.package-extension }}
+          if [[ ${{ matrix.package-os }} == "linux" ]]; then
+            mv "${{ env.FULLNAME }}.tar.xz" $name
+          elif [[ ${{ matrix.package-os }} == "windows" ]]; then
+            zip $name "${{ env.FULLNAME }}.exe"
+          else
+            zip --symlinks -r $name "${{ env.FULLNAME }}.app/"
+          fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.NAME }}-windows
-          path: ${{ env.NAME }}-${{ env.VERSION }}-windows-x64.zip
-          if-no-files-found: error
-          overwrite: true
-
-  package_darwin_arm:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Xcode
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: latest-stable
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GOVERSION }}
-
-      - name: Install Fyne tool
-        run: go install fyne.io/tools/cmd/fyne@latest
-
-      - name: Update app version
-        continue-on-error: true
-        run: |
-          GIT_TAG=$(git describe --tags --always)
-          APP_VERSION=${GIT_TAG#v}
-          sed -i .bak -E 's/(\s*Version).*/\1 = "'$APP_VERSION'"/' FyneApp.toml
-
-      - name: Package Fyne app
-        run: fyne package -os darwin --release
-
-      - name: Set version
-        run: |
-          VERSION=${{ github.ref_name }}
-          echo "VERSION=${VERSION:1}" >> $GITHUB_ENV
-
-      - name: ZIP package
-        run: zip --symlinks -r ${{ env.NAME }}-${{ env.VERSION }}-darwin-arm64.zip "${{ env.FULLNAME }}.app/"
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.NAME }}-macos-arm
-          path: ${{ env.NAME }}-${{ env.VERSION }}-darwin-arm64.zip
-          if-no-files-found: error
-          overwrite: true
-
-  package_darwin_intel:
-    runs-on: macos-13
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Xcode
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: latest-stable
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GOVERSION }}
-
-      - name: Install Fyne tool
-        run: go install fyne.io/tools/cmd/fyne@latest
-
-      - name: Update app version
-        continue-on-error: true
-        run: |
-          GIT_TAG=$(git describe --tags --always)
-          APP_VERSION=${GIT_TAG#v}
-          sed -i .bak -E 's/(\s*Version).*/\1 = "'$APP_VERSION'"/' FyneApp.toml
-
-      - name: Package Fyne app
-        run: fyne package -os darwin --release
-
-      - name: Set version
-        run: |
-          VERSION=${{ github.ref_name }}
-          echo "VERSION=${VERSION:1}" >> $GITHUB_ENV
-
-      - name: ZIP package
-        run: zip --symlinks -r ${{ env.NAME }}-${{ env.VERSION }}-darwin-intel64.zip "${{ env.FULLNAME }}.app/"
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.NAME }}-macos-intel
-          path: ${{ env.NAME }}-${{ env.VERSION }}-darwin-intel64.zip
+          name: ${{ env.NAME }}-${{ matrix.artifact-suffix }}
+          path: ${{ env.NAME }}-${{ env.VERSION }}-${{ matrix.artifact-suffix }}.${{ matrix.package-extension }}
           if-no-files-found: error
           overwrite: true
 
   release:
-    needs:
-      [package_linux, package_darwin_arm, package_darwin_intel, package_windows]
+    needs: [package]
     runs-on: ubuntu-latest
     steps:
-      - name: Download artifact
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
+          path: artifacts
+          pattern: ${{ env.NAME }}-*
           merge-multiple: true
 
       - name: List all files
-        run: ls -rl
+        run: ls -R artifacts
 
-      - name: Make version string
-        run: |
-          VERSION=${{ github.ref_name }}
-          echo "VERSION=${VERSION:1}" >> $GITHUB_ENV
+      # - name: Make version string
+      #   run: |
+      #     VERSION=${{ github.ref_name }}
+      #     echo "VERSION=${VERSION:1}" >> $GITHUB_ENV
 
       - name: Generate SHA256 checksums
         run: |
-          sha256sum *.zip >> SHA256SUMS.txt
-          sha256sum *.tar.xz >> SHA256SUMS.txt
+          cd artifacts
+          sha256sum *.zip *.tar.xz > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       - name: Release
@@ -226,8 +151,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN_ACTION }}
         with:
-          tag_name: ${{ steps.ref.outputs.version }}
+          tag_name: ${{ github.ref_name }}
           files: |
-            SHA256SUMS.txt
-            *.zip
-            *.tar.xz
+            artifacts/SHA256SUMS.txt
+            artifacts/*.zip
+            artifacts/*.tar.xz
