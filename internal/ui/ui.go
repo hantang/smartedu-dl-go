@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"image/color"
 
 	"fyne.io/fyne/v2/app"
@@ -13,12 +14,13 @@ import (
 )
 
 func InitUI(isLocal bool) {
-	a := app.NewWithID(dl.APP_ID)
+	a := app.New()
+
 	customTheme := NewCustomTheme()
 	a.Settings().SetTheme(customTheme)
 
-	w := a.NewWindow(dl.APP_NAME)
-
+	metadata := a.Metadata()
+	w := a.NewWindow(metadata.Name)
 	// Menu and title
 	toolbar := widget.NewToolbar(
 		widget.NewToolbarAction(theme.SettingsIcon(), func() {
@@ -29,10 +31,14 @@ func InitUI(isLocal bool) {
 			picker.Show()
 		}),
 		widget.NewToolbarAction(theme.InfoIcon(), func() {
-			dialog.NewInformation("关于", dl.APP_DESC, w).Show()
+			dialog.NewInformation("关于", fmt.Sprintf("%s\n当前版本：%s", dl.APP_DESC, metadata.Version), w).Show()
 		}),
 		widget.NewToolbarAction(theme.HelpIcon(), func() {
-			dialog.ShowInformation("帮助", "选择需要下载的资源，点击下载按钮即可", w)
+			dialog.ShowInformation("帮助",
+				"选择➀先选择教材请课程或输入链接，➁然后需要下载的资源类型、修改下载目录，\n"+
+					"➂最后点击下载按钮即可；➃若下载视频请用“仅下载视频”按钮。\n\n"+
+					"如果出现下载失败等问题，请配置登录信息（X-Nd-Auth值或者Access Token）。\n"+
+					"若使用“备用下载”，请注意可能下载得到非最新版本。", w)
 		}),
 	)
 

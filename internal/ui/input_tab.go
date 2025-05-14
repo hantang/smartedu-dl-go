@@ -43,9 +43,10 @@ func CreateInputTab(w fyne.Window, linkItemMaps map[string][]dl.LinkItem, name s
 
 	// Description text
 	info := fmt.Sprintf(
-		"支持的URL格式示例：\n• 教材URL: %s\n• 课程URL: %s\n\n可以直接从浏览器地址复制URL。",
+		"支持的URL格式示例：\n• 教材URL: %s\n• 课程URL: %s\n• 精品课程: %s\n\n可以直接从浏览器地址复制URL。",
 		fmt.Sprintf(dl.TchMaterialInfo.Detail, "{contentId}"),
 		fmt.Sprintf(dl.SyncClassroomInfo.Detail, "{activityId}"),
+		fmt.Sprintf(dl.EliteSyncClassroomInfo.Detail, "{courseId}"),
 	)
 	bottom := container.NewVBox(
 		container.NewCenter(clearButton),

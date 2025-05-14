@@ -258,7 +258,7 @@ func ExtractResources(links []string, formatList []string, random bool, useBacku
 
 func GenerateURLFromID(linkItems []LinkItem) []string {
 	// book_id/link转化成URL
-	metaInfoList := []ResourceMetaInfo{InputInfo, TchMaterialInfo, SyncClassroomInfo, SyncClassroomInfo2}
+	metaInfoList := []ResourceMetaInfo{InputInfo, TchMaterialInfo, SyncClassroomInfo, EliteSyncClassroomInfo}
 	urls := []string{}
 
 	for _, linkItem := range linkItems {

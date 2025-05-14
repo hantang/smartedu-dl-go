@@ -10,7 +10,7 @@ Website = "https://github.com/hantang/smartedu-dl-go"
 [Release]
   BuildName = "SmarteduDL"
   ContentRating = ""
-  Description = "<p>智慧教育平台中的教材资源下载工具</p>"
+  Description = "<p>智慧教育平台中的教材等资源下载工具</p>"
   License = "MIT"
 
 [LinuxAndBSD]

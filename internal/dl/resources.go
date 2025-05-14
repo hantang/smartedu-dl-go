@@ -1,9 +1,6 @@
 package dl
 
-const APP_ID string = "io.github.hantang.smartedudl"
-const APP_NAME string = "smartedu-dl"
-const APP_DESC string = "本工具用于下载智慧教育平台中的教材资源，支持批量下载PDF等资源。"
-const APP_VERSION string = "0.0.1"
+const APP_DESC string = "本工具用于下载智慧教育平台中的教材等资源，支持批量下载PDF等资源。"
 
 // 配置数据
 // 服务器前缀
@@ -52,7 +49,7 @@ var SyncClassroomInfo = ResourceMetaInfo{
 	Type:      "national_lesson", // DataCourseInfo.ResourceType
 }
 
-var SyncClassroomInfo2 = ResourceMetaInfo{
+var EliteSyncClassroomInfo = ResourceMetaInfo{
 	// 基础教育精品课
 	Detail: "https://basic.smartedu.cn/qualityCourse?courseId=%s",
 	Type:   "elite_lesson",
