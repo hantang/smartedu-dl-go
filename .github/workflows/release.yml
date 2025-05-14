@@ -13,9 +13,7 @@ env:
 
 jobs:
   package_linux:
-    # if: startsWith(github.ref, 'refs/tags/')
-    # needs: test
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -24,13 +22,20 @@ jobs:
         with:
           go-version: ${{ env.GOVERSION }}
 
-      - name: Install build dependencies
+      - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install gcc libgl1-mesa-dev xorg-dev libfuse2
 
       - name: Install Fyne tool
         run: go install fyne.io/tools/cmd/fyne@latest
+
+      - name: Update app version
+        continue-on-error: true
+        run: |
+          GIT_TAG=$(git describe --tags --always)
+          APP_VERSION=${GIT_TAG#v}
+          sed -i -E 's/(\s*Version).*/\1 = "'$APP_VERSION'"/' FyneApp.toml
 
       - name: Package Fyne app
         run: fyne package -os linux --release
@@ -40,17 +45,15 @@ jobs:
           VERSION=${{ github.ref_name }}
           echo "VERSION=${VERSION:1}" >> $GITHUB_ENV
 
-      - name: Install Fyne tool
-        run: go install fyne.io/tools/cmd/fyne@latest
-
       - name: ZIP package
         run: mv "${{ env.FULLNAME }}.tar.xz" ${{ env.NAME }}-${{ env.VERSION }}-linux.tar.xz
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ env.NAME }}-linux
           path: ${{ env.NAME }}-${{ env.VERSION }}-linux.tar.xz
-          # if-no-files-found: error
+          if-no-files-found: error
           overwrite: true
 
   package_windows:
@@ -59,7 +62,8 @@ jobs:
       run:
         shell: msys2 {0}
     steps:
-      - uses: msys2/setup-msys2@v2
+      - name: Set MSYS
+        uses: msys2/setup-msys2@v2
         with:
           path-type: inherit
           update: true
@@ -72,14 +76,21 @@ jobs:
           go-version: ${{ env.GOVERSION }}
 
       - name: Install Dependencies
-        run: >
+        run: |
           pacman -Syu &&
           pacman --noconfirm -S git zip mingw-w64-x86_64-toolchain
 
       - name: Install Fyne tool
         run: go install fyne.io/tools/cmd/fyne@latest
 
-      - name: Package
+      - name: Update app version
+        continue-on-error: true
+        run: |
+          GIT_TAG=$(git describe --tags --always)
+          APP_VERSION=${GIT_TAG#v}
+          sed -i -E 's/(\s*Version).*/\1 = "'$APP_VERSION'"/' FyneApp.toml
+
+      - name: Package Fyne app
         run: fyne package -os windows --release
 
       - name: Set version
@@ -109,14 +120,21 @@ jobs:
           xcode-version: latest-stable
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GOVERSION }}
 
       - name: Install Fyne tool
         run: go install fyne.io/tools/cmd/fyne@latest
 
-      - name: Package app bundles
+      - name: Update app version
+        continue-on-error: true
+        run: |
+          GIT_TAG=$(git describe --tags --always)
+          APP_VERSION=${GIT_TAG#v}
+          sed -i .bak -E 's/(\s*Version).*/\1 = "'$APP_VERSION'"/' FyneApp.toml
+
+      - name: Package Fyne app
         run: fyne package -os darwin --release
 
       - name: Set version
@@ -124,7 +142,7 @@ jobs:
           VERSION=${{ github.ref_name }}
           echo "VERSION=${VERSION:1}" >> $GITHUB_ENV
 
-      - name: ZIP app bundle
+      - name: ZIP package
         run: zip --symlinks -r ${{ env.NAME }}-${{ env.VERSION }}-darwin-arm64.zip "${{ env.FULLNAME }}.app/"
 
       - name: Upload artifact
@@ -146,14 +164,21 @@ jobs:
           xcode-version: latest-stable
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GOVERSION }}
 
       - name: Install Fyne tool
         run: go install fyne.io/tools/cmd/fyne@latest
 
-      - name: Package app bundles
+      - name: Update app version
+        continue-on-error: true
+        run: |
+          GIT_TAG=$(git describe --tags --always)
+          APP_VERSION=${GIT_TAG#v}
+          sed -i .bak -E 's/(\s*Version).*/\1 = "'$APP_VERSION'"/' FyneApp.toml
+
+      - name: Package Fyne app
         run: fyne package -os darwin --release
 
       - name: Set version
@@ -161,7 +186,7 @@ jobs:
           VERSION=${{ github.ref_name }}
           echo "VERSION=${VERSION:1}" >> $GITHUB_ENV
 
-      - name: ZIP app bundle
+      - name: ZIP package
         run: zip --symlinks -r ${{ env.NAME }}-${{ env.VERSION }}-darwin-intel64.zip "${{ env.FULLNAME }}.app/"
 
       - name: Upload artifact
