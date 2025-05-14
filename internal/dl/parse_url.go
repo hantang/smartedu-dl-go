@@ -116,18 +116,28 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 	var result []LinkData
 	var items []ResourceItem
 
-	// 尝试解析为ResourceItemExt
-	var response ResourceItemExt
-	if err := json.Unmarshal(data, &response); err == nil {
-		if len(response.Relations.NationalCourseResource) > 0 {
-			items = response.Relations.NationalCourseResource
+	// 尝试解析为ResourceItemExt (课程类)
+	var itemExt ResourceItemExt
+	if err := json.Unmarshal(data, &itemExt); err == nil {
+		slog.Debug("Parse into ResourceItemExt")
+		tempItems := [][]ResourceItem{
+			itemExt.Relations.NationalCourseResource,
+			itemExt.Relations.EliteCourseResource,
+		}
+		for _, temp := range tempItems {
+			if len(temp) > 0 {
+				items = temp
+				break
+			}
 		}
 	}
 
-	// 如果不是ResourceItemExt，尝试解析为ResourceItem数组
+	// 如果不是ResourceItemExt，尝试解析为ResourceItem数组（教材类）
 	if len(items) == 0 {
+		slog.Debug("Parse into ResourceItem list")
 		if err := json.Unmarshal(data, &items); err != nil {
 			// 如果不是数组，尝试解析为单个ResourceItem
+			slog.Debug("Parse into single ResourceItem")
 			var item ResourceItem
 			if err := json.Unmarshal(data, &item); err != nil {
 				return nil, err

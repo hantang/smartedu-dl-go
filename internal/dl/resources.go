@@ -114,7 +114,7 @@ var RESOURCES_MAP = map[string]ResourceData{
 		},
 		resources: ResourceInfo{
 			// https://s-file-1.ykt.cbern.com.cn/zxx/ndrv2/resources/78605dce-97f6-62b7-6cb2-ac41ffd9467b.json
-			basic: "https://%s.ykt.cbern.com.cn/zxx/ndrv2/resources/tch_material/details/%s.json",
+			basic: "https://%s.ykt.cbern.com.cn/zxx/ndrv2/resources/%s.json",
 		},
 	},
 	// "/syncClassroom/examinationpapers": {
@@ -200,6 +200,7 @@ type BookOption struct {
 type ResourceItemExt struct {
 	Relations struct {
 		NationalCourseResource []ResourceItem `json:"national_course_resource"`
+		EliteCourseResource    []ResourceItem `json:"course_resource"`
 	} `json:"relations"`
 }
 
