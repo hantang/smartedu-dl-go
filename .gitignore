@@ -52,3 +52,4 @@ data/
 # fyne
 fyne_metadata_init.go
 *.app/
+*.bak
