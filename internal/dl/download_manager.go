@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -180,6 +181,24 @@ func getSavePath(downloadsDir string, title string, suffix string) string {
 	}
 }
 
+func sanitizeFilename(s string) string {
+	// 删除非法字符
+	invalidChars := regexp.MustCompile(`[/\\:*?"<>|]`)
+	s = invalidChars.ReplaceAllString(s, "")
+	s = strings.TrimSpace(s)
+
+	// 控制最大长度（比如 255 字符）
+	maxLength := 255
+	if len(s) > maxLength {
+		s = strings.TrimSpace(s[:maxLength])
+	}
+	// 默认值
+	if s == "" {
+		return "Untitled"
+	}
+	return s
+}
+
 func (dm *DownloadManager) downloadFile(wg *sync.WaitGroup, file LinkData, downloadedBytes *atomic.Int64, headers map[string]string) (bool, string) {
 	defer wg.Done()
 	url := file.URL
@@ -206,7 +225,9 @@ func (dm *DownloadManager) downloadFile(wg *sync.WaitGroup, file LinkData, downl
 	}
 	defer resp.Body.Close()
 
-	outputPath := getSavePath(dm.downloadsDir, file.Title, file.Format)
+	// 去除标题中特殊字符
+	filename := sanitizeFilename(file.Title)
+	outputPath := getSavePath(dm.downloadsDir, filename, file.Format)
 	out, err := os.Create(outputPath)
 	if err != nil {
 		slog.Warn(fmt.Sprintf("创建文件 %s 出错：%v\n", outputPath, err))
