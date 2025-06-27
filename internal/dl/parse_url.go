@@ -224,6 +224,27 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 	return result, nil
 }
 
+func removeDuplicates(result []LinkData) []LinkData {
+	// 判断URL路径（不包括域名和参数等）过滤重复
+	counts := make(map[string]int)
+	var unique []LinkData
+
+	for _, item := range result {
+		parsedURL, err := url.Parse(item.URL)
+		if err != nil {
+			continue
+		}
+
+		key := parsedURL.Path
+		if counts[key] == 0 {
+			unique = append(unique, item)
+		}
+		counts[key]++
+	}
+
+	return unique
+}
+
 func ExtractResources(links []string, formatList []string, random bool, useBackup bool) []LinkData {
 	var result []LinkData
 
@@ -253,7 +274,13 @@ func ExtractResources(links []string, formatList []string, random bool, useBacku
 		}
 		result = append(result, resources...)
 	}
-	return result
+
+	// 去重
+	unique := removeDuplicates(result)
+	if len(result) != len(unique) {
+		slog.Info(fmt.Sprintf("After deduplication resources = %d -> %d", len(result), len(unique)))
+	}
+	return unique
 }
 
 func GenerateURLFromID(linkItems []LinkItem) []string {
