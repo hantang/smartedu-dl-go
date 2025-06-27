@@ -156,7 +156,7 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map
 	})
 
 	// Download buttons
-	downloadButton := widget.NewButtonWithIcon("下载以下资源", theme.DownloadIcon(), nil)
+	downloadButton := widget.NewButtonWithIcon("下载已选择资源", theme.DownloadIcon(), nil)
 	downloadVideoButton := widget.NewButtonWithIcon("仅下载视频", theme.DownloadIcon(), nil)
 
 	downloadButton.OnTapped = func() {

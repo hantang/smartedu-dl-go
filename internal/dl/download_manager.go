@@ -208,7 +208,7 @@ func (dm *DownloadManager) downloadFile(wg *sync.WaitGroup, file LinkData, downl
 			break
 		}
 	}
-	slog.Debug(fmt.Sprintf("URL = %s", url))
+	slog.Debug(fmt.Sprintf("Title = %s, URL = %s", file.Title, url))
 
 	req, _ := http.NewRequest("GET", url, nil)
 	for k, v := range headers {
