@@ -268,7 +268,8 @@ func (dm *DownloadManager) downloadVideoFile(wg *sync.WaitGroup, file LinkData, 
 	}
 
 	slog.Debug(fmt.Sprintf("URL = %s", url))
-	outputPath := getSavePath(dm.downloadsDir, file.Title, file.Format)
+	filename := sanitizeFilename(file.Title)
+	outputPath := getSavePath(dm.downloadsDir, filename, file.Format)
 
 	err := DownloadM3U8(url, outputPath, headers, downloadedBytes)
 	if err != nil {
