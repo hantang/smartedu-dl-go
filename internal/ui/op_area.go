@@ -36,10 +36,12 @@ func createFormatCheckboxes() []fyne.CanvasObject {
 	return checkboxes
 }
 
-func extractDownloadInfo(w fyne.Window, pathEntry *widget.Entry, defaultPath string) string {
+func extractDownloadInfo(w fyne.Window, pathEntry *widget.Entry, defaultPath string, ignores string) string {
 	downloadPath := pathEntry.Text
 	if downloadPath == "" {
 		downloadPath = path.Join(defaultPath, "Downloads")
+	} else if strings.HasPrefix(downloadPath, ignores) {
+		downloadPath = downloadPath[len(ignores):]
 	}
 	slog.Info(fmt.Sprintf("downloadPath is %v", downloadPath))
 	// if downloadPath == "" {
@@ -137,6 +139,7 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map
 	pathEntry := widget.NewEntry()
 	pathEntry.SetPlaceHolder("从“选择目录”中更新路径，输入无效，默认【用户下载目录】")
 	// pathEntry.Disable()
+	pathComment := "更新为："
 
 	selectPathButton := widget.NewButtonWithIcon("选择目录", theme.FolderIcon(), func() {
 		dialog.NewFolderOpen(func(dir fyne.ListableURI, err error) {
@@ -148,7 +151,7 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map
 				return
 			}
 			// downloadPath = dir.Path()
-			pathEntry.SetText("更新为：" + dir.Path())
+			pathEntry.SetText(pathComment + dir.Path())
 		}, w).Show()
 	})
 
@@ -164,7 +167,7 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map
 		if len(filteredURLs) == 0 {
 			return
 		}
-		downloadPath := extractDownloadInfo(w, pathEntry, defaultPath)
+		downloadPath := extractDownloadInfo(w, pathEntry, defaultPath, pathComment)
 		headers := initHeaders(loginEntry)
 
 		// 下载进行中禁止再次点击
@@ -225,7 +228,7 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map
 		if len(filteredURLs) == 0 {
 			return
 		}
-		downloadPath := extractDownloadInfo(w, pathEntry, defaultPath)
+		downloadPath := extractDownloadInfo(w, pathEntry, defaultPath, pathComment)
 		headers := initHeaders(loginEntry)
 
 		// 下载进行中禁止再次点击
