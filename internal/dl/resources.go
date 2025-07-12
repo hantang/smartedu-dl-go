@@ -128,6 +128,8 @@ var RESOURCES_MAP = map[string]ResourceData{
 	// },
 }
 
+var RESOURCES_PATH = "/edu_product/esp/assets/"
+
 // 数据结构
 type ResourceMetaInfo struct {
 	Directory string

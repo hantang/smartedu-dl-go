@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"math/rand"
 	"net/url"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
@@ -27,6 +28,10 @@ func ValidURL(link string) bool {
 	}
 
 	path := parsedURL.Path
+	// 允许直接输入下载资源链接
+	if strings.Contains(path, RESOURCES_PATH) {
+		return true
+	}
 	if _, ok := RESOURCES_MAP[path]; !ok {
 		return false
 	}
@@ -45,6 +50,11 @@ func parseURL(link string, audio bool, random bool, useBackup bool) ([]string, e
 	// host := parsedURL.Host
 	path := parsedURL.Path
 	queryParams := parsedURL.Query()
+	if strings.Contains(path, RESOURCES_PATH) { // 资源链接，不再额外解析
+		configURLList = append(configURLList, link)
+		return configURLList, nil
+	}
+
 	configInfo, ok := RESOURCES_MAP[path]
 	if !ok {
 		return configURLList, fmt.Errorf("invalid url path: %s", path)
@@ -224,6 +234,35 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 	return result, nil
 }
 
+func getResourceItem(link string) (LinkData, error) {
+	// 直接解析资源链接
+	ext := filepath.Ext(link)
+	format := strings.TrimPrefix(ext, ".")
+	title := strings.ToTitle(format)
+
+	pattern := `/zh-CN/(\d+)/(?:transcode/)?(\w+/)?[\w\-]+\.(\w+)$`
+	re := regexp.MustCompile(pattern)
+	matches := re.FindStringSubmatch(link)
+
+	if len(matches) > 0 {
+		title_id := matches[1]
+		genre := strings.Trim(matches[2], "/")
+		if genre == "" {
+			genre = matches[3]
+		}
+		title = fmt.Sprintf("%s-%s", strings.ToTitle(genre), title_id)
+	}
+
+	result := LinkData{
+		Format: format,
+		Title:  title,
+		URL:    link,
+		RawURL: link,
+		Size:   -1,
+	}
+	return result, nil
+}
+
 func removeDuplicates(result []LinkData) []LinkData {
 	// 判断URL路径（不包括域名和参数等）过滤重复
 	counts := make(map[string]int)
@@ -262,6 +301,18 @@ func ExtractResources(links []string, formatList []string, random bool, useBacku
 
 	for _, url := range configURLList {
 		slog.Debug("config url = " + url)
+
+		// 是否直接资源链接
+		if strings.Contains(url, RESOURCES_PATH) {
+			resource, err := getResourceItem(url)
+			if err == nil {
+				if slices.Contains(formatList, resource.Format) {
+					result = append(result, resource)
+				}
+				continue
+			}
+		}
+
 		data, err, statusOK := FetchJsonData(url)
 		if err != nil || !statusOK {
 			slog.Warn(fmt.Sprintf("fetch data error: %v / status=%v", err, statusOK))

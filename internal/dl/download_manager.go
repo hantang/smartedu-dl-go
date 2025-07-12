@@ -50,7 +50,9 @@ func (dm *DownloadManager) StartDownload(downloadButton *widget.Button, download
 	// 计算文件大小
 	var totalSize int64
 	for i := range dm.links {
-		totalSize += dm.links[i].Size
+		if dm.links[i].Size > 0 {
+			totalSize += dm.links[i].Size
+		}
 	}
 	slog.Debug(fmt.Sprintf("Total links = %d, total file size = %d", len(dm.links), totalSize))
 
@@ -74,7 +76,11 @@ func (dm *DownloadManager) StartDownload(downloadButton *widget.Button, download
 			default:
 				downloaded := float64(downloadedBytes.Load())
 				downloadedFiles := int64(downloadedFiles.Load())
-				progress := downloaded / float64(totalSize)
+				progress := float64(downloadedFiles) / float64(len(dm.links))
+				if totalSize > 0 {
+					progress = downloaded / float64(totalSize)
+				}
+
 				fyne.DoAndWait(func() {
 					dm.progressBar.SetValue(progress)
 					dm.statusLabel.SetText(fmt.Sprintf("下载中... %d/%d 个文件", downloadedFiles, len(dm.links)))
