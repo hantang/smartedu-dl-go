@@ -203,7 +203,7 @@ func GetM3U8Size(m3u8URL string, headers map[string]string) (int64, error) {
 
 func extractM3u8Info(mediaPlaylist m3u8.MediaPlaylist) (keyURL, keyID string, iv []byte, err error) {
 	if mediaPlaylist.Key == nil {
-		return "", "", nil, fmt.Errorf("没有加密(无EXT-X-KEY标签)")
+		return "", "", nil, nil // fmt.Errorf("没有加密(无EXT-X-KEY标签)")
 	}
 	slog.Debug(fmt.Sprintf("加密方法(METHOD): %s\n", mediaPlaylist.Key.Method))
 	slog.Debug(fmt.Sprintf("密钥URI: %s\n", mediaPlaylist.Key.URI))
@@ -307,11 +307,14 @@ func DownloadM3U8(m3u8URL, savePath string, headers map[string]string, downloade
 	if err != nil {
 		return err
 	}
+
+	// 允许key为空，不加密
 	key, err := getDecryptionKey(keyURL, keyID, headers)
 	if err != nil {
-		return err
+		slog.Debug("解密key为空\n")
+	} else {
+		slog.Debug(fmt.Sprintf("解密key: %s\n", key))
 	}
-	slog.Debug(fmt.Sprintf("解密key: %s\n", key))
 
 	saveFile, err := os.Create(savePath)
 	if err != nil {
