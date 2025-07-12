@@ -113,7 +113,7 @@ func extractDownloadLinks(w fyne.Window, tab *container.AppTabs, linkItemMaps ma
 // The returned container contains elements for selecting resources, choosing a save path, logging in, and starting the download.
 // The download buttons are disabled while the download is in progress.
 // Once the download is started, the progress bar and label are updated to show the progress and total count of resources.
-func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map[string][]dl.LinkItem) *fyne.Container {
+func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map[string][]dl.LinkItem, maxConcurrency int) *fyne.Container {
 	random := true
 	// Progress bar
 	progressBar := widget.NewProgressBar()
@@ -218,7 +218,7 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map
 
 		// 下载任务 更新进度条
 		downloadManager := dl.NewDownloadManager(w, progressBar, progressLabel, downloadPath, resourceURLs)
-		downloadManager.StartDownload(downloadButton, downloadVideoButton, headers, logCheckbox.Checked, false)
+		downloadManager.StartDownload(downloadButton, downloadVideoButton, headers, logCheckbox.Checked, false, maxConcurrency)
 	}
 
 	downloadVideoButton.OnTapped = func() {
@@ -246,7 +246,7 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map
 
 		// 下载视频
 		downloadManager := dl.NewDownloadManager(w, progressBar, progressLabel, downloadPath, resourceURLs)
-		downloadManager.StartDownload(downloadButton, downloadVideoButton, headers, logCheckbox.Checked, true)
+		downloadManager.StartDownload(downloadButton, downloadVideoButton, headers, logCheckbox.Checked, true, maxConcurrency)
 	}
 
 	downloadPart := container.NewCenter(

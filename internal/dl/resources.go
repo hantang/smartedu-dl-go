@@ -1,6 +1,8 @@
 package dl
 
 const APP_DESC string = "本工具用于下载智慧教育平台中的教材等资源，支持批量下载PDF等资源。"
+const LOG_FILE string = "log-smartedudl.txt"
+const APP_NAME string = "cn.smartedu"
 
 // 配置数据
 // 服务器前缀

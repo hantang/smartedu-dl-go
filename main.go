@@ -10,6 +10,7 @@ import (
 func main() {
 	isDebug := flag.Bool("debug", false, "Enable debug logging")
 	isLocal := flag.Bool("local", false, "Enable local file mode")
+	threads := flag.Int("threads", 10, "Max concurrency for video download")
 	flag.Parse()
 	if *isDebug {
 		slog.SetLogLoggerLevel(slog.LevelDebug)
@@ -20,5 +21,5 @@ func main() {
 	}
 
 	// os.Setenv("FYNE_FONT", "./assets/DouyinSansBold.ttf")
-	ui.InitUI(*isLocal)
+	ui.InitUI(*isLocal, *threads)
 }

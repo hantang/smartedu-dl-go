@@ -13,7 +13,7 @@ import (
 	"github.com/hantang/smartedudlgo/internal/dl"
 )
 
-func InitUI(isLocal bool) {
+func InitUI(isLocal bool, maxConcurrency int) {
 	a := app.New()
 
 	customTheme := NewCustomTheme()
@@ -56,7 +56,7 @@ func InitUI(isLocal bool) {
 	)
 
 	// Bottom operation area
-	operationArea := CreateOperationArea(w, tabContainer, linkItemMaps)
+	operationArea := CreateOperationArea(w, tabContainer, linkItemMaps, maxConcurrency)
 
 	content := container.NewBorder(toolbar, operationArea, nil, nil, tabContainer)
 	w.SetContent(content)

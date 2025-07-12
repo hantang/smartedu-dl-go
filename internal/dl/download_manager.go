@@ -38,7 +38,7 @@ func NewDownloadManager(window fyne.Window, progressBar *widget.ProgressBar, sta
 	}
 }
 
-func (dm *DownloadManager) StartDownload(downloadButton *widget.Button, downloadVideoButton *widget.Button, headers map[string]string, enableLog bool, isVideo bool) {
+func (dm *DownloadManager) StartDownload(downloadButton *widget.Button, downloadVideoButton *widget.Button, headers map[string]string, enableLog bool, isVideo bool, maxConcurrency int) {
 	if err := os.MkdirAll(dm.downloadsDir, 0755); err != nil {
 		dialog.ShowError(fmt.Errorf("下载目录创建失败：%v", err), dm.window)
 		dm.statusLabel.SetText("创建下载目录失败")
@@ -99,7 +99,7 @@ func (dm *DownloadManager) StartDownload(downloadButton *widget.Button, download
 			var isSuccess bool
 			var outputPath string
 			if isVideo {
-				isSuccess, outputPath = dm.downloadVideoFile(&wg, file, &downloadedBytes, headers)
+				isSuccess, outputPath = dm.downloadVideoFile(&wg, file, &downloadedBytes, headers, maxConcurrency)
 			} else {
 				isSuccess, outputPath = dm.downloadFile(&wg, file, &downloadedBytes, headers)
 			}
@@ -153,7 +153,7 @@ func (dm *DownloadManager) StartDownload(downloadButton *widget.Button, download
 }
 
 func saveLogFile(downloadsDir string, results []string) {
-	filename := "log-smartedudl.txt"
+	filename := LOG_FILE
 	savePath := filepath.Join(downloadsDir, filename)
 	content := strings.Join(append(results, ""), "\n")
 	slog.Info(fmt.Sprintf("Save log to %s", savePath))
@@ -263,7 +263,7 @@ func (dm *DownloadManager) downloadFile(wg *sync.WaitGroup, file LinkData, downl
 	return true, outputPath
 }
 
-func (dm *DownloadManager) downloadVideoFile(wg *sync.WaitGroup, file LinkData, downloadedBytes *atomic.Int64, headers map[string]string) (bool, string) {
+func (dm *DownloadManager) downloadVideoFile(wg *sync.WaitGroup, file LinkData, downloadedBytes *atomic.Int64, headers map[string]string, maxConcurrency int) (bool, string) {
 	defer wg.Done()
 	url := file.URL
 	for _, v := range headers {
@@ -277,7 +277,7 @@ func (dm *DownloadManager) downloadVideoFile(wg *sync.WaitGroup, file LinkData, 
 	filename := sanitizeFilename(file.Title)
 	outputPath := getSavePath(dm.downloadsDir, filename, file.Format)
 
-	err := DownloadM3U8(url, outputPath, headers, downloadedBytes)
+	err := DownloadM3U8(url, outputPath, headers, downloadedBytes, maxConcurrency)
 	if err != nil {
 		slog.Warn(fmt.Sprintf("下载出错 %v", err))
 		return false, outputPath

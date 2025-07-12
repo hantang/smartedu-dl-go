@@ -8,12 +8,15 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"io"
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"github.com/grafov/m3u8"
@@ -226,8 +229,8 @@ func extractM3u8Info(mediaPlaylist m3u8.MediaPlaylist) (keyURL, keyID string, iv
 	return keyURL, keyID, iv, nil
 }
 
-// 解密TS数据并写入MP4文件
-func processSegment(segmentURL string, headers map[string]string, key []byte, iv []byte, saveFile *os.File, downloadedBytes *atomic.Int64) error {
+// 下载单个TS文件，增加header信息，更新进度条
+func downloadTSFile(segmentURL, filename string, headers map[string]string, downloadedBytes *atomic.Int64) error {
 	// 创建HTTP请求
 	segmentReq, err := http.NewRequest("GET", segmentURL, nil)
 	if err != nil {
@@ -245,10 +248,25 @@ func processSegment(segmentURL string, headers map[string]string, key []byte, iv
 	}
 	defer segmentResp.Body.Close()
 
-	// 读取加密的TS数据
-	encryptedData, err := io.ReadAll(segmentResp.Body)
+	outFile, err := os.Create(filename)
 	if err != nil {
-		return fmt.Errorf("failed to read segment data: %w", err)
+		return err
+	}
+	defer outFile.Close()
+
+	_, err = io.Copy(outFile, segmentResp.Body)
+	if segmentResp.ContentLength > 0 {
+		downloadedBytes.Add(int64(segmentResp.ContentLength))
+	}
+	return err
+}
+
+func getDecryptedData(tsFile string, key []byte, iv []byte) ([]byte, error) {
+	// 读取加密的TS数据
+	// encryptedData, err := io.ReadAll(segmentResp.Body)
+	encryptedData, err := os.ReadFile(tsFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read segment data: %w", err)
 	}
 
 	// 解密数据
@@ -256,25 +274,110 @@ func processSegment(segmentURL string, headers map[string]string, key []byte, iv
 	if key != nil {
 		decryptedData, err = decryptAES_CBC(encryptedData, key, iv)
 		if err != nil {
-			return fmt.Errorf("failed to decrypt segment: %w", err)
+			return nil, fmt.Errorf("failed to decrypt segment: %w", err)
 		}
 	} else {
 		decryptedData = encryptedData // 未加密直接使用原始数据
 	}
+	return decryptedData, nil
 
-	// 写入MP4文件
-	n, err := saveFile.Write(decryptedData)
-	if err != nil {
-		return fmt.Errorf("failed to write segment to file: %w", err)
+}
+
+// 获取 url 在切片中的索引
+func getIndex(urls []string, target string) int {
+	for i, u := range urls {
+		if u == target {
+			return i
+		}
+	}
+	return -1
+}
+
+// 并发下载 ts 文件并按顺序写入输出文件
+func downloadAllTS(tempDir string, urls []string, headers map[string]string, maxConcurrency int, downloadedBytes *atomic.Int64) error {
+	var wg sync.WaitGroup
+	downloadChan := make(chan string, len(urls))
+	errChan := make(chan error, 1)
+
+	// 控制并发数
+	for i := 0; i < maxConcurrency; i++ {
+		go func() {
+			for url := range downloadChan {
+				filename := filepath.Join(tempDir, fmt.Sprintf("%05d.ts", getIndex(urls, url)))
+				err := downloadTSFile(url, filename, headers, downloadedBytes)
+				if err != nil {
+					select {
+					case errChan <- err:
+					default:
+					}
+				}
+				wg.Done()
+			}
+		}()
 	}
 
-	// 更新下载字节数
-	downloadedBytes.Add(int64(n))
+	// 分发任务
+	for _, url := range urls {
+		wg.Add(1)
+		downloadChan <- url
+	}
+	close(downloadChan)
+
+	// 等待下载完成
+	go func() {
+		wg.Wait()
+		close(errChan)
+	}()
+
+	// 检查是否有错误
+	if err := <-errChan; err != nil {
+		return err
+	}
 	return nil
 }
 
+// 按顺序合并 ts 文件
+func mergeTSFiles(tempDir, outFile string, urls []string, key []byte, iv []byte) error {
+	outFileHandle, err := os.Create(outFile)
+	if err != nil {
+		return err
+	}
+	defer outFileHandle.Close()
+
+	for i := 0; i < len(urls); i++ {
+		tsFile := filepath.Join(tempDir, fmt.Sprintf("%05d.ts", i))
+		tsData, err := getDecryptedData(tsFile, key, iv)
+		if err != nil {
+			return err
+		}
+		if _, err := outFileHandle.Write(tsData); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func getTempDirFromHash(input string, prefix string) (string, error) {
+	// hash作为临时目录
+	h := fnv.New32a()
+	h.Write([]byte(input))
+	hashValue := h.Sum32()
+	hashStr := strconv.FormatUint(uint64(hashValue), 16)
+	tempDir := filepath.Join(os.TempDir(), prefix, "video_"+hashStr)
+
+	if err := os.RemoveAll(tempDir); err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(tempDir, os.ModePerm); err != nil {
+		return "", err
+	}
+
+	return tempDir, nil
+}
+
 // downloads a M3U8 video and save it to MP4 file
-func DownloadM3U8(m3u8URL, savePath string, headers map[string]string, downloadedBytes *atomic.Int64) error {
+func DownloadM3U8(m3u8URL, savePath string, headers map[string]string, downloadedBytes *atomic.Int64, maxConcurrency int) error {
 	req, err := http.NewRequest("GET", m3u8URL, nil)
 	if err != nil {
 		return fmt.Errorf("创建 GET 请求失败: %w", err)
@@ -322,21 +425,27 @@ func DownloadM3U8(m3u8URL, savePath string, headers map[string]string, downloade
 	}
 	defer saveFile.Close()
 
-	// TODO 并发
+	// 并发下载，临时目录保存单个ts片段，之后再合并
 	baseURL := m3u8URL[:strings.LastIndex(m3u8URL, "/")+1]
-	for i, segment := range segments {
+	segmentURLList := []string{}
+	for _, segment := range segments {
 		if segment == nil {
 			continue
 		}
-
 		segmentURL := segment.URI
 		if !strings.HasPrefix(segmentURL, "http") {
 			segmentURL = baseURL + segmentURL
 		}
-		err := processSegment(segmentURL, headers, key, iv, saveFile, downloadedBytes)
-		if err != nil {
-			return fmt.Errorf("下载失败 %d (%s): %w", i, segmentURL, err)
-		}
+		segmentURLList = append(segmentURLList, segmentURL)
 	}
+
+	tempDir, err := getTempDirFromHash(baseURL, APP_NAME)
+	if err != nil {
+		return err
+	}
+	slog.Debug(fmt.Sprintf("tempDir: %s\nmaxConcurrency: %d\nTS count: %d", tempDir, maxConcurrency, len(segmentURLList)))
+
+	downloadAllTS(tempDir, segmentURLList, headers, maxConcurrency, downloadedBytes)
+	mergeTSFiles(tempDir, savePath, segmentURLList, key, iv)
 	return nil
 }
