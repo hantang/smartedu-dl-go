@@ -23,8 +23,8 @@ func createRadiobuttons(w fyne.Window, name string, tabData OptionTabData, linkI
 		optionMap[name2] = opt.OptionID
 	}
 
+	tabData.StatsText.Set(fmt.Sprintf("课程（共%d项）：", len(options)))
 	tabData.RadioDict = optionMap
-	tabData.RadioStatsLabel.SetText(fmt.Sprintf("课程（共%d项）：", len(options)))
 	tabData.RadioGroup.Options = options
 	tabData.RadioGroup.OnChanged = radioCallback(w, name, tabData, linkItemMaps)
 	tabData.RadioGroup.Enable()
@@ -57,7 +57,7 @@ func radioCallback(w fyne.Window, name string, tabData OptionTabData, linkItemMa
 			// dialog.ShowError(fmt.Errorf("课程单元为空，请查询其他课程"), w)
 			return
 		} else {
-			tabData.CheckText.Set(fmt.Sprintf("课程单元共%d章", len(options)))
+			tabData.CheckText.Set(fmt.Sprintf("课程单元（共%d章）", len(options)))
 		}
 
 		tabData.Combobox.SetOptions(options)
@@ -121,7 +121,8 @@ func CreateClassroomOptionsTab(w fyne.Window, linkItemMaps map[string][]dl.LinkI
 		CancelAllButton: widget.NewButtonWithIcon("清空", theme.CancelIcon(), nil),
 
 		RadioGroup:      widget.NewRadioGroup([]string{}, nil),
-		RadioStatsLabel: widget.NewLabel("请选择某一课程"),
+		RadioStatsLabel: widget.NewLabel(""),
+		StatsText:       binding.NewString(),
 		Combobox:        widget.NewSelect([]string{}, nil),
 		RadioDict:       make(map[string]string),
 		CourseDict:      make(map[string][]dl.CourseToc),
@@ -129,8 +130,10 @@ func CreateClassroomOptionsTab(w fyne.Window, linkItemMaps map[string][]dl.LinkI
 
 	tabData.QueryLabel.Bind(tabData.QueryText)
 	tabData.CheckLabel.Bind(tabData.CheckText)
-	tabData.QueryText.Set("点击课程教学内容")
-	tabData.CheckText.Set("课程包列表")
+	tabData.RadioStatsLabel.Bind(tabData.StatsText)
+	tabData.QueryText.Set("🔍️ 点击课程教学内容")
+	tabData.CheckText.Set("⚗️ 课程包列表")
+	tabData.StatsText.Set("💡 请选择某一课程")
 
 	tabData.SelectAllButton.Disable()
 	tabData.CancelAllButton.Disable()

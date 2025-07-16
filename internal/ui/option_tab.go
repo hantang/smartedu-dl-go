@@ -34,6 +34,7 @@ type OptionTabData struct {
 	// left top 用于课程
 	RadioGroup      *widget.RadioGroup // 选择课程
 	RadioStatsLabel *widget.Label
+	StatsText       binding.String
 	Combobox        *widget.Select // 选择章节
 	RadioDict       map[string]string
 	CourseDict      map[string][]dl.CourseToc
@@ -95,10 +96,10 @@ func cleanData(tabData OptionTabData, name string, index int, linkItemMaps map[s
 	resetComponents(tabData, index)
 
 	if name == dl.TAB_NAMES[2] {
-		// tabData.QueryText.Set("")
-		tabData.CheckText.Set("课程包列表")
+		tabData.CheckText.Set("⚗️ 课程包列表")
+		tabData.StatsText.Set("💡 请选择某一课程")
 	} else {
-		tabData.CheckText.Set("电子教材")
+		tabData.CheckText.Set("🗃️ 电子教材")
 	}
 
 	// 清空数据
@@ -161,7 +162,7 @@ func createCheckboxes(name string, tabData OptionTabData, linkItemMaps map[strin
 	}
 
 	// linkItemMaps[name] = []dl.LinkItem{}
-	tabData.CheckText.Set(fmt.Sprintf("%s（共%d项）：", info, len(options)))
+	tabData.CheckText.Set(fmt.Sprintf("%s（共%d册）：", info, len(options)))
 	tabData.CheckGroup.Options = options
 	tabData.CheckGroup.SetSelected([]string{})
 	tabData.CheckGroup.OnChanged = func(items []string) {
@@ -173,7 +174,7 @@ func createCheckboxes(name string, tabData OptionTabData, linkItemMaps map[strin
 			}
 			linkItemMaps[name] = append(linkItemMaps[name], linkItem)
 		}
-		tabData.CheckText.Set(fmt.Sprintf("%s（共%d项，已选%d项）：", info, len(options), len(items)))
+		tabData.CheckText.Set(fmt.Sprintf("%s（共%d册，已选%d册）：", info, len(options), len(items)))
 	}
 
 	tabData.SelectAllButton.OnTapped = func() {
@@ -230,7 +231,7 @@ func initRightPart(w fyne.Window, linkItemMaps map[string][]dl.LinkItem, tabData
 		}
 
 		if tabData.InitTabData {
-			tabData.QueryText.Set("请选择" + info)
+			tabData.QueryText.Set("💡 请选择" + info)
 			tabData.QueryButton.SetText("重置")
 			tabData.QueryButton.SetIcon(theme.ViewRefreshIcon())
 
@@ -264,8 +265,8 @@ func CreateMaterialOptionsTab(w fyne.Window, linkItemMaps map[string][]dl.LinkIt
 	// 绑定文本
 	tabData.QueryLabel.Bind(tabData.QueryText)
 	tabData.CheckLabel.Bind(tabData.CheckText)
-	tabData.QueryText.Set("点击查询、加载教材信息")
-	tabData.CheckText.Set("电子教材")
+	tabData.QueryText.Set("🔍️ 点击查询、加载教材信息")
+	tabData.CheckText.Set("🗃️ 电子教材")
 
 	tabData.SelectAllButton.Disable()
 	tabData.CancelAllButton.Disable()

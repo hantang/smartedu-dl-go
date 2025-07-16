@@ -120,7 +120,7 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map
 	progressLabel := widget.NewLabel("当前无下载内容")
 
 	// Resource type checkboxes
-	formatLabel := widget.NewLabelWithStyle("资源类型: ", fyne.TextAlign(fyne.TextAlignLeading), fyne.TextStyle{Bold: true})
+	formatLabel := widget.NewLabelWithStyle("🔖 资源类型: ", fyne.TextAlign(fyne.TextAlignLeading), fyne.TextStyle{Bold: true})
 	checkboxes := createFormatCheckboxes()
 
 	// backup links
@@ -128,14 +128,14 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map
 	logCheckbox := widget.NewCheck("记录日志", func(checked bool) {})
 
 	// user log info
-	loginLabel := widget.NewLabelWithStyle("登录信息: ", fyne.TextAlign(fyne.TextAlignLeading), fyne.TextStyle{Bold: true})
+	loginLabel := widget.NewLabelWithStyle("🍪 登录信息: ", fyne.TextAlign(fyne.TextAlignLeading), fyne.TextStyle{Bold: true})
 	loginEntry := widget.NewEntry()
 	loginEntry.SetPlaceHolder("请在浏览器登录账号后，填写X-Nd-Auth值或者Access Token")
 
 	// Save path display and button
 	defaultPath, _ := os.UserHomeDir()
 	// downloadPath := path.Join(defaultPath, "Downloads")
-	pathLabel := widget.NewLabelWithStyle("保存目录: ", fyne.TextAlign(fyne.TextAlignLeading), fyne.TextStyle{Bold: true})
+	pathLabel := widget.NewLabelWithStyle("🗂️ 保存目录: ", fyne.TextAlign(fyne.TextAlignLeading), fyne.TextStyle{Bold: true})
 	pathEntry := widget.NewEntry()
 	pathEntry.SetPlaceHolder("从“选择目录”中更新路径，输入无效，默认【用户下载目录】")
 	// pathEntry.Disable()
@@ -157,7 +157,7 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map
 
 	// Download buttons
 	downloadButton := widget.NewButtonWithIcon("下载已选择资源", theme.DownloadIcon(), nil)
-	downloadVideoButton := widget.NewButtonWithIcon("仅下载视频", theme.DownloadIcon(), nil)
+	downloadVideoButton := widget.NewButtonWithIcon("仅下载视频", theme.FileVideoIcon(), nil)
 
 	downloadButton.OnTapped = func() {
 		filteredURLs := extractDownloadLinks(w, tab, linkItemMaps)
