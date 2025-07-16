@@ -121,6 +121,41 @@ func convertURL(rawLink string, randomIndex int) string {
 	return link
 }
 
+// 提取教师名称并拼接
+func getTeacherNames(r ResourceItemExt) string {
+	// slog.Debug(fmt.Sprintf("Teacher %v", r.TeacherList))
+	var names []string
+	for _, teacher := range r.TeacherList {
+		if teacher.Name != "" {
+			names = append(names, teacher.Name)
+		}
+	}
+	return strings.Join(names, " ")
+}
+
+func concatFullTitle(title string, bookName string, schoolName string, teacherNames string) string {
+	baseTitle := title
+	// 教材名
+	if bookName != "" {
+		baseTitle = bookName + "-" + title
+	}
+
+	// 处理学校名称和教师列表
+	var suffixParts []string
+	if schoolName != "" {
+		suffixParts = append(suffixParts, schoolName)
+	}
+	if teacherNames != "" {
+		suffixParts = append(suffixParts, teacherNames)
+	}
+
+	if len(suffixParts) > 0 {
+		baseTitle = fmt.Sprintf("%s (%s)", baseTitle, strings.Join(suffixParts, "_"))
+	}
+
+	return baseTitle + ""
+}
+
 func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]LinkData, error) {
 	// 解析资源文件（json格式），得到最终下来文件的链接
 	var result []LinkData
@@ -128,7 +163,16 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 
 	// 尝试解析为ResourceItemExt (课程类)
 	var itemExt ResourceItemExt
+	teacherNames := ""
+	schoolName := ""
+	bookName := ""
+
 	if err := json.Unmarshal(data, &itemExt); err == nil {
+		slog.Debug(fmt.Sprintf("CustomProperties %v", itemExt.CustomProperties))
+		teacherNames = getTeacherNames(itemExt)
+		schoolName = itemExt.CustomProperties.SchoolName
+		bookName = itemExt.CustomProperties.BookInfo.Name
+
 		slog.Debug("Parse into ResourceItemExt")
 		tempItems := [][]ResourceItem{
 			itemExt.Relations.NationalCourseResource,
@@ -158,6 +202,8 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 
 	// 处理每个ResourceItem
 	for i, item := range items {
+		// 补充额外信息，尽量避免标题重复
+
 		title := item.CustomProperties.OriginalTitle
 		if title == "" {
 			title = item.Title
@@ -219,11 +265,14 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 				break
 			}
 		}
+		fullTitle := concatFullTitle(title, bookName, schoolName, teacherNames)
+		slog.Debug(fmt.Sprintf("title: %s %s %s %s %s", title, bookName, schoolName, teacherNames, fullTitle))
 		if link != "" {
 			link = cleanURL(link)
 			result = append(result, LinkData{
 				Format: format,
-				Title:  title,
+				Title:  fullTitle,
+				ID:     item.ID,
 				URL:    link,
 				RawURL: rawLink,
 				Size:   size,
@@ -239,10 +288,17 @@ func getResourceItem(link string) (LinkData, error) {
 	ext := filepath.Ext(link)
 	format := strings.TrimPrefix(ext, ".")
 	title := strings.ToTitle(format)
-
-	pattern := `/zh-CN/(\d+)/(?:transcode/)?(\w+/)?[\w\-]+\.(\w+)$`
+	pattern := `/assets/([\w\-]+)`
 	re := regexp.MustCompile(pattern)
 	matches := re.FindStringSubmatch(link)
+	id := ""
+	if len(matches) > 0 {
+		id = matches[1]
+	}
+
+	pattern = `/zh-CN/(\d+)/(?:transcode/)?(\w+/)?[\w\-]+\.(\w+)$`
+	re = regexp.MustCompile(pattern)
+	matches = re.FindStringSubmatch(link)
 
 	if len(matches) > 0 {
 		title_id := matches[1]
@@ -256,6 +312,7 @@ func getResourceItem(link string) (LinkData, error) {
 	result := LinkData{
 		Format: format,
 		Title:  title,
+		ID:     id,
 		URL:    link,
 		RawURL: link,
 		Size:   -1,
@@ -269,7 +326,7 @@ func removeDuplicates(result []LinkData) []LinkData {
 	var unique []LinkData
 
 	for _, item := range result {
-		parsedURL, err := url.Parse(item.URL)
+		parsedURL, err := url.Parse(item.URL) // item.ID
 		if err != nil {
 			continue
 		}
@@ -278,6 +335,37 @@ func removeDuplicates(result []LinkData) []LinkData {
 		if counts[key] == 0 {
 			unique = append(unique, item)
 		}
+		counts[key]++
+	}
+
+	return unique
+}
+
+func renameDuplicates(result []LinkData) []LinkData {
+	counts := make(map[string]int)
+	var unique []LinkData
+
+	for _, item := range result {
+		key := item.Title
+		if counts[key] > 0 {
+			newTitle := ""
+			if item.ID != "" {
+				newTitle = fmt.Sprintf("%s_%s", item.Title, item.ID)
+			} else {
+				index := 1
+				for {
+					newTitle = fmt.Sprintf("%s (%d)", item.Title, index)
+					if counts[newTitle] == 0 {
+						break
+					}
+					index += 1
+				}
+			}
+
+			item.Title = newTitle
+			key = newTitle
+		}
+		unique = append(unique, item)
 		counts[key]++
 	}
 
@@ -331,7 +419,9 @@ func ExtractResources(links []string, formatList []string, random bool, useBacku
 	if len(result) != len(unique) {
 		slog.Info(fmt.Sprintf("After deduplication resources = %d -> %d", len(result), len(unique)))
 	}
-	return unique
+	// 重名处理
+	renamed := renameDuplicates(unique)
+	return renamed
 }
 
 func GenerateURLFromID(linkItems []LinkItem) []string {

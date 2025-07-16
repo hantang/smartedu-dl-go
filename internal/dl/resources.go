@@ -158,6 +158,7 @@ type ResourceData struct {
 type LinkData struct {
 	Format string
 	Title  string
+	ID     string
 	URL    string
 	RawURL string
 	Size   int64
@@ -199,14 +200,30 @@ type BookOption struct {
 // JSON数据解析
 // 资源所在JSON的格式
 type ResourceItemExt struct {
+	ID    string `json:"id"`
+	Title struct {
+		Name string `json:"zh-CN"`
+	} `json:"global_title"`
+
 	Relations struct {
 		NationalCourseResource []ResourceItem `json:"national_course_resource"`
 		EliteCourseResource    []ResourceItem `json:"course_resource"`
 	} `json:"relations"`
+	TeacherList      []Teacher `json:"teacher_list"`
+	CustomProperties struct {
+		SchoolName string   `json:"school_name"`
+		BookInfo   BookInfo `json:"teachingmaterial_info"`
+	} `json:"custom_properties"`
+}
+
+type Teacher struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 // 资源文件
 type ResourceItem struct {
+	ID               string   `json:"id"`
 	TiItems          []TiItem `json:"ti_items"`
 	Title            string   `json:"title"`
 	ResourceType     string   `json:"resource_type_code_name"`
@@ -214,6 +231,14 @@ type ResourceItem struct {
 		OriginalTitle string `json:"original_title"`
 		AliasName     string `json:"alias_name"`
 	} `json:"custom_properties"`
+}
+
+type BookInfo struct {
+	Name         string   `json:"title"`
+	ID           string   `json:"id"`
+	ResourceType string   `json:"resource_type_code_name"`
+	Language     string   `json:"language"`
+	TagList      []DocTag `json:"tag_list"`
 }
 
 // 资源文件中ti_items
