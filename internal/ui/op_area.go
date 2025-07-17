@@ -222,7 +222,6 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map
 	}
 
 	downloadVideoButton.OnTapped = func() {
-		// TODO 下载视频 m3u8链接解析
 		filteredURLs := extractDownloadLinks(w, tab, linkItemMaps)
 		slog.Info(fmt.Sprintf("filteredURLs count = %d", len(filteredURLs)))
 		if len(filteredURLs) == 0 {

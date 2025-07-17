@@ -95,7 +95,6 @@ func (dm *DownloadManager) StartDownload(downloadButton *widget.Button, download
 	for _, file := range dm.links {
 		wg.Add(1)
 		go func(file LinkData) {
-			// TODO
 			var isSuccess bool
 			var outputPath string
 			if isVideo {
@@ -107,8 +106,10 @@ func (dm *DownloadManager) StartDownload(downloadButton *widget.Button, download
 			if isSuccess {
 				successCount++
 			}
+
+			// TODO 更好的日志格式，目前是csv
 			now := time.Now().Format("2006-01-02 15:04:05 MST")
-			result := fmt.Sprintf("%s,%v,%d,%s,%s,%s", now, isSuccess, file.Size, outputPath, file.RawURL, file.URL)
+			result := fmt.Sprintf("%s,%v,%d,%s,%s,%s", now, isSuccess, file.Size, outputPath, file.RawURL, file.BackupURL)
 			results = append(results, result)
 		}(file)
 	}
@@ -173,7 +174,7 @@ func saveLogFile(downloadsDir string, results []string) {
 
 func getSavePath(downloadsDir string, title string, suffix string) string {
 	index := 0
-	if suffix == "m3u8" { // TODO
+	if suffix == "m3u8" {
 		suffix = "ts"
 	}
 	filename := fmt.Sprintf("%s.%s", title, suffix)
@@ -207,7 +208,7 @@ func sanitizeFilename(s string) string {
 
 func (dm *DownloadManager) downloadFile(wg *sync.WaitGroup, file LinkData, downloadedBytes *atomic.Int64, headers map[string]string) (bool, string) {
 	defer wg.Done()
-	url := file.URL
+	url := file.BackupURL
 	for _, v := range headers {
 		if v != "" {
 			url = file.RawURL
@@ -265,7 +266,7 @@ func (dm *DownloadManager) downloadFile(wg *sync.WaitGroup, file LinkData, downl
 
 func (dm *DownloadManager) downloadVideoFile(wg *sync.WaitGroup, file LinkData, downloadedBytes *atomic.Int64, headers map[string]string, maxConcurrency int) (bool, string) {
 	defer wg.Done()
-	url := file.URL
+	url := file.BackupURL
 	for _, v := range headers {
 		if v != "" {
 			url = file.RawURL

@@ -156,12 +156,12 @@ type ResourceData struct {
 
 // 资源文件中抽取得到格式（后缀）、标题（文件名）和下载链接
 type LinkData struct {
-	Format string
-	Title  string
-	ID     string
-	URL    string
-	RawURL string
-	Size   int64
+	Format    string
+	Title     string
+	ID        string
+	RawURL    string
+	BackupURL string
+	Size      int64
 }
 
 type FormatData struct {

@@ -13,10 +13,6 @@ import (
 	"strings"
 )
 
-func cleanURL(link string) string {
-	return strings.ReplaceAll(link, "ndr-private.", "ndr.")
-}
-
 func ValidURL(link string) bool {
 	if link == "" || !strings.HasPrefix(link, "http") {
 		return false
@@ -109,15 +105,23 @@ func parseURLList(links []string, audio bool, random bool, useBackup bool) []str
 	return configURLList
 }
 
-func convertURL(rawLink string, randomIndex int) string {
-	// link ~~去除“-doc-private”~~
-	// => https://r3-ndr.ykt.cbern.com.cn/edu_product/esp/assets/<教材代码>.pkg/pdf.pdf
-	slog.Debug(fmt.Sprintf("Raw URL = %s", rawLink))
-	link := rawLink
-	link = regexp.MustCompile(`[^/]+\.pdf$`).ReplaceAllString(link, "pdf.pdf") // 可能是旧版教材
-	link = regexp.MustCompile(`ndr-(doc-)?private`).ReplaceAllString(link, "ndr")
+func convertURL(rawLink string, isClean bool) string {
+	// 备用解析，可能是旧版教材，不一定有效
+	// 原始：https://r3-ndr-private.ykt.cbern.com.cn/edu_product/esp/assets/<id>.pkg/<title>_<毫秒时间戳>.pdf
+	// => https://r3-ndr.ykt.cbern.com.cn/edu_product/esp/assets/<id>.pkg/pdf.pdf
+	// => https://r3-ndr.ykt.cbern.com.cn/edu_product/esp/assets/<id>.pdf
 
+	link := rawLink
+	slog.Debug(fmt.Sprintf("Raw URL = %s", link))
+
+	// link = regexp.MustCompile(`[^/]+\.pdf$`).ReplaceAllString(link, "pdf.pdf")
+	link = regexp.MustCompile(`(/[\w\-]+)\.pkg/[\w\-]+\.pdf$`).ReplaceAllString(link, "${1}.pdf")
 	slog.Debug(fmt.Sprintf("Update URL = %s", link))
+
+	if isClean {
+		link = strings.ReplaceAll(link, "ndr-private.", "ndr.")
+		slog.Debug(fmt.Sprintf("Cleaned URL = %s", link))
+	}
 	return link
 }
 
@@ -134,6 +138,7 @@ func getTeacherNames(r ResourceItemExt) string {
 }
 
 func concatFullTitle(title string, bookName string, schoolName string, teacherNames string) string {
+	// 完整格式：教材名-课程名 (学校_教师)
 	baseTitle := title
 	// 教材名
 	if bookName != "" {
@@ -153,7 +158,7 @@ func concatFullTitle(title string, bookName string, schoolName string, teacherNa
 		baseTitle = fmt.Sprintf("%s (%s)", baseTitle, strings.Join(suffixParts, "_"))
 	}
 
-	return baseTitle + ""
+	return baseTitle
 }
 
 func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]LinkData, error) {
@@ -203,7 +208,6 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 	// 处理每个ResourceItem
 	for i, item := range items {
 		// 补充额外信息，尽量避免标题重复
-
 		title := item.CustomProperties.OriginalTitle
 		if title == "" {
 			title = item.Title
@@ -223,7 +227,6 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 			}
 		}
 
-		var link string
 		var rawLink string
 		var format string
 		var size int64
@@ -239,13 +242,8 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 				randomIndex = rand.Intn(len(tiItem.TiStorages))
 			}
 			rawLink = tiItem.TiStorages[randomIndex]
-			link = convertURL(rawLink, randomIndex)
-			if link == "" {
-				continue
-			}
-
 			format = tiItem.TiFormat
-			size = tiItem.TiSize // TODO
+			size = tiItem.TiSize
 			if len(tiItem.CustomProperties.Requirements) > 0 {
 				for _, reqItem := range tiItem.CustomProperties.Requirements {
 					// 视频大小
@@ -261,21 +259,21 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 			if title == "" {
 				title = fmt.Sprintf("%s-%03d", strings.ToUpper(format), i)
 			}
-			if link != "" {
+			if rawLink != "" {
 				break
 			}
 		}
+
 		fullTitle := concatFullTitle(title, bookName, schoolName, teacherNames)
-		slog.Debug(fmt.Sprintf("title: %s %s %s %s %s", title, bookName, schoolName, teacherNames, fullTitle))
-		if link != "" {
-			link = cleanURL(link)
+		if rawLink != "" {
+			backupLink := convertURL(rawLink, true) // 备用下载链接
 			result = append(result, LinkData{
-				Format: format,
-				Title:  fullTitle,
-				ID:     item.ID,
-				URL:    link,
-				RawURL: rawLink,
-				Size:   size,
+				Format:    format,
+				Title:     fullTitle,
+				ID:        item.ID,
+				RawURL:    rawLink,
+				BackupURL: backupLink,
+				Size:      size,
 			})
 		}
 	}
@@ -288,17 +286,16 @@ func getResourceItem(link string) (LinkData, error) {
 	ext := filepath.Ext(link)
 	format := strings.TrimPrefix(ext, ".")
 	title := strings.ToTitle(format)
-	pattern := `/assets/([\w\-]+)`
-	re := regexp.MustCompile(pattern)
-	matches := re.FindStringSubmatch(link)
 	id := ""
+
+	pattern := `/assets/([\w\-]+)`
+	matches := regexp.MustCompile(pattern).FindStringSubmatch(link)
 	if len(matches) > 0 {
 		id = matches[1]
 	}
 
 	pattern = `/zh-CN/(\d+)/(?:transcode/)?(\w+/)?[\w\-]+\.(\w+)$`
-	re = regexp.MustCompile(pattern)
-	matches = re.FindStringSubmatch(link)
+	matches = regexp.MustCompile(pattern).FindStringSubmatch(link)
 
 	if len(matches) > 0 {
 		title_id := matches[1]
@@ -309,13 +306,14 @@ func getResourceItem(link string) (LinkData, error) {
 		title = fmt.Sprintf("%s-%s", strings.ToTitle(genre), title_id)
 	}
 
+	backupLink := convertURL(link, true)
 	result := LinkData{
-		Format: format,
-		Title:  title,
-		ID:     id,
-		URL:    link,
-		RawURL: link,
-		Size:   -1,
+		Format:    format,
+		Title:     title,
+		ID:        id,
+		RawURL:    link,
+		BackupURL: backupLink,
+		Size:      -1,
 	}
 	return result, nil
 }
@@ -326,7 +324,7 @@ func removeDuplicates(result []LinkData) []LinkData {
 	var unique []LinkData
 
 	for _, item := range result {
-		parsedURL, err := url.Parse(item.URL) // item.ID
+		parsedURL, err := url.Parse(item.BackupURL) // item.ID
 		if err != nil {
 			continue
 		}
