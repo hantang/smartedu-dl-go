@@ -31,6 +31,7 @@ var TAB_NAMES = []string{
 	"输入链接",
 	"教材列表",
 	"课件包",
+	"诵读库",
 }
 
 // 电子教材（层级和列表数据等） https://basic.smartedu.cn/tchMaterial
@@ -49,6 +50,14 @@ var SyncClassroomInfo = ResourceMetaInfo{
 	Tag:       "https://s-file-2.ykt.cbern.com.cn/zxx/ndrs/tags/national_lesson_tag.json",
 	Detail:    "https://basic.smartedu.cn/syncClassroom/classActivity?activityId=%s",
 	Type:      "national_lesson", // DataCourseInfo.ResourceType
+}
+
+// 语文诵读库 https://szyb.smartedu.cn/library/18cd1ab4-5560-472f-953a-85de88736aa2/catalog
+var ReadingLibraryInfo = ResourceMetaInfo{
+	Directory: "data/readingLibrary",
+	Tag:       "https://s-file-1.ykt.cbern.com.cn/museum/api/zh-CN/a685009e-085c-4d18-9928-daa0ec5dd8a4/elearning_library/v1/libraries/18cd1ab4-5560-472f-953a-85de88736aa2/contents/actions/full/adapter/cd2d42991f0d3597fa8b5a5f5d2e5b5a1722e13d48d4d50db5b2e3c6c8ad9ae4.json",
+	Detail:    "https://s-file-1.ykt.cbern.com.cn/museum/ndrs/special_edu/resources/details/%s.json",
+	Type:      "assets_audio",
 }
 
 var EliteSyncClassroomInfo = ResourceMetaInfo{
@@ -357,4 +366,24 @@ type CourseToc struct {
 type LinkItem struct {
 	Link string
 	Type string // ResourceMetaInfo.Type
+}
+
+// readinglibrary
+type DataLibrary struct {
+	Files     []string `json:"files"`
+	Timestamp int64    `json:"timestamp"`
+}
+
+type ReadingItem struct {
+	UnitID       string       `json:"unit_id"`
+	ResourceType string       `json:"resource_type"`
+	Title        string       `json:"title"`
+	Description  string       `json:"description"`
+	Tags         []ReadingTag `json:"tags"`
+}
+
+type ReadingTag struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	Code  string `json:"code"`
 }

@@ -98,6 +98,8 @@ func cleanData(tabData OptionTabData, name string, index int, linkItemMaps map[s
 	if name == dl.TAB_NAMES[2] {
 		tabData.CheckText.Set("⚗️ 课程包列表")
 		tabData.StatsText.Set("💡 请选择某一课程")
+	} else if name == dl.TAB_NAMES[3] {
+		tabData.CheckText.Set("🔊 音频资料")
 	} else {
 		tabData.CheckText.Set("🗃️ 电子教材")
 	}
@@ -153,6 +155,11 @@ func updateComboboxes(w fyne.Window, tabData OptionTabData, name string, index i
 func createCheckboxes(name string, tabData OptionTabData, linkItemMaps map[string][]dl.LinkItem, bookOptions []dl.BookOption) {
 	// left part: checkboxes for book(PDF)
 	info := "电子教材"
+	quantifier := "册"
+	if name == dl.TAB_NAMES[3] {
+		info = "语文课文"
+		quantifier = "篇"
+	}
 	options := []string{}
 	optionMap := map[string]string{}
 	for i, opt := range bookOptions {
@@ -162,7 +169,7 @@ func createCheckboxes(name string, tabData OptionTabData, linkItemMaps map[strin
 	}
 
 	// linkItemMaps[name] = []dl.LinkItem{}
-	tabData.CheckText.Set(fmt.Sprintf("%s（共%d册）：", info, len(options)))
+	tabData.CheckText.Set(fmt.Sprintf("%s（共%d%s）：", info, len(options), quantifier))
 	tabData.CheckGroup.Options = options
 	tabData.CheckGroup.SetSelected([]string{})
 	tabData.CheckGroup.OnChanged = func(items []string) {
@@ -174,7 +181,7 @@ func createCheckboxes(name string, tabData OptionTabData, linkItemMaps map[strin
 			}
 			linkItemMaps[name] = append(linkItemMaps[name], linkItem)
 		}
-		tabData.CheckText.Set(fmt.Sprintf("%s（共%d册，已选%d册）：", info, len(options), len(items)))
+		tabData.CheckText.Set(fmt.Sprintf("%s（共%d%s，已选%d%s）：", info, len(options), quantifier, len(items), quantifier))
 	}
 
 	tabData.SelectAllButton.OnTapped = func() {
@@ -196,6 +203,8 @@ func initRightPart(w fyne.Window, linkItemMaps map[string][]dl.LinkItem, tabData
 	info := "教材"
 	if name == dl.TAB_NAMES[2] {
 		info = "课程"
+	} else if name == dl.TAB_NAMES[3] {
+		info = "诵读音频"
 	}
 
 	for i := range tabData.ComboLabelArray {
@@ -216,13 +225,12 @@ func initRightPart(w fyne.Window, linkItemMaps map[string][]dl.LinkItem, tabData
 
 		if !tabData.InitTabData {
 			bookBase := dl.FetchRawData2(name, isLocal)
-			if name == dl.TAB_NAMES[2] {
+			if name != dl.TAB_NAMES[1] {
 				if bookBase.Name != "" {
 					bookItemsHistory[index] = bookBase
 					tabData.InitTabData = true
 				}
 			} else {
-
 				if len(bookBase.Children) > 0 {
 					bookItemsHistory[index] = bookBase.Children[index]
 					tabData.InitTabData = true

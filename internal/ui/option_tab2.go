@@ -131,7 +131,7 @@ func CreateClassroomOptionsTab(w fyne.Window, linkItemMaps map[string][]dl.LinkI
 	tabData.QueryLabel.Bind(tabData.QueryText)
 	tabData.CheckLabel.Bind(tabData.CheckText)
 	tabData.RadioStatsLabel.Bind(tabData.StatsText)
-	tabData.QueryText.Set("🔍️ 点击课程教学内容")
+	tabData.QueryText.Set("🔍️ 点击加载课程教学内容")
 	tabData.CheckText.Set("⚗️ 课程包列表")
 	tabData.StatsText.Set("💡 请选择某一课程")
 

@@ -37,6 +37,22 @@ func createFormatCheckboxes() []fyne.CanvasObject {
 	return checkboxes
 }
 
+func createAudioCheckboxes() []fyne.CanvasObject {
+	// 资源类型复选框
+	var checkboxes []fyne.CanvasObject
+	for _, format := range dl.FORMAT_LIST {
+		checkbox := widget.NewCheck(format.Name, func(checked bool) {
+		})
+		if strings.Contains(format.Name, "音频") {
+			checkbox.SetChecked(format.Suffix == "mp3")
+		} else {
+			checkbox.Disable()
+		}
+		checkboxes = append(checkboxes, checkbox)
+	}
+	return checkboxes
+}
+
 func extractDownloadInfo(w fyne.Window, pathEntry *widget.Entry, defaultPath string, ignores string) string {
 	downloadPath := pathEntry.Text
 	if downloadPath == "" {
@@ -83,7 +99,13 @@ func extractDownloadLinks(w fyne.Window, tab *container.AppTabs, linkItemMaps ma
 
 		return filteredURLs
 	}
-	urlList := dl.GenerateURLFromID(linkItems)
+	var urlList []string
+	if currentTab == dl.TAB_NAMES[3] {
+		urlList = dl.GenerateURLFromID2(linkItems)
+		return urlList
+	} else {
+		urlList = dl.GenerateURLFromID(linkItems)
+	}
 	slog.Debug(fmt.Sprintf("urlList = %d, %s", len(urlList), urlList))
 
 	for _, link := range urlList {
@@ -92,7 +114,7 @@ func extractDownloadLinks(w fyne.Window, tab *container.AppTabs, linkItemMaps ma
 		}
 	}
 	if len(filteredURLs) == 0 {
-		info := "请右侧下拉框中选择教材，再从左侧多选框选择课本"
+		info := "请从右侧下拉框中选择教材，再从左侧多选框选择课本"
 		if currentTab == dl.TAB_NAMES[0] {
 			info = "请在上方的输入框输入有效的 URL"
 		}
@@ -102,19 +124,43 @@ func extractDownloadLinks(w fyne.Window, tab *container.AppTabs, linkItemMaps ma
 	return filteredURLs
 }
 
-// CreateOperationArea returns a container with UI elements for downloading resources.
-// The returned container contains elements for selecting resources, choosing a save path, logging in, and starting the download.
-// The download buttons are disabled while the download is in progress.
-// Once the download is started, the progress bar and label are updated to show the progress and total count of resources.
 func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map[string][]dl.LinkItem, maxConcurrency int) *fyne.Container {
 	random := true
 	// Progress bar
 	progressBar := widget.NewProgressBar()
 	progressLabel := widget.NewLabel("当前无下载内容")
 
+	// Download buttons
+	downloadButton := widget.NewButtonWithIcon("下载已选择资源", theme.DownloadIcon(), nil)
+	downloadVideoButton := widget.NewButtonWithIcon("仅下载视频", theme.FileVideoIcon(), nil)
+
+
 	// Resource type checkboxes
 	formatLabel := widget.NewLabelWithStyle("🔖 资源类型: ", fyne.TextAlign(fyne.TextAlignLeading), fyne.TextStyle{Bold: true})
-	checkboxes := createFormatCheckboxes()
+	formatContainer := container.NewHBox()
+	updateCheckboxes := func() {
+		formatContainer.Objects = nil
+		var checkboxes []fyne.CanvasObject
+		if tab.Selected() != nil && tab.Selected().Text == dl.TAB_NAMES[3] {
+			checkboxes = createAudioCheckboxes()
+			downloadVideoButton.Disable()
+		} else {
+			checkboxes = createFormatCheckboxes()
+			downloadVideoButton.Enable()
+		}
+		formatContainer.Objects = checkboxes
+		formatContainer.Refresh()
+	}
+	updateCheckboxes()
+
+	// 根据tab更新资源列表
+	originalOnSelected := tab.OnSelected
+	tab.OnSelected = func(tab *container.TabItem) {
+		if originalOnSelected != nil {
+			originalOnSelected(tab)
+		}
+		updateCheckboxes()
+	}
 
 	// backup links
 	backupCheckbox := widget.NewCheck("备用解析", func(checked bool) {})
@@ -156,11 +202,8 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map
 		}, w).Show()
 	})
 
-	// Download buttons
-	downloadButton := widget.NewButtonWithIcon("下载已选择资源", theme.DownloadIcon(), nil)
-	downloadVideoButton := widget.NewButtonWithIcon("仅下载视频", theme.FileVideoIcon(), nil)
-
 	downloadButton.OnTapped = func() {
+		isParse := tab.Selected().Text != dl.TAB_NAMES[3]
 		filteredURLs := extractDownloadLinks(w, tab, linkItemMaps)
 		slog.Info(fmt.Sprintf("filteredURLs count = %d", len(filteredURLs)))
 		slog.Debug(fmt.Sprintf("filteredURLs list = %s", filteredURLs))
@@ -177,6 +220,7 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map
 
 		// 遍历获取勾选状态
 		var formatList []string
+		checkboxes := formatContainer.Objects
 		for i, checkbox := range checkboxes {
 			if checkbox.(*widget.Check).Checked {
 				formatList = append(formatList, dl.FORMAT_LIST[i].Suffix)
@@ -192,7 +236,7 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map
 		slog.Info(fmt.Sprintf("formatList count = %d", len(formatList)))
 		slog.Debug(fmt.Sprintf("formatList =\n %v", formatList))
 
-		resourceURLs := dl.ExtractResources(filteredURLs, formatList, random, backupCheckbox.Checked)
+		resourceURLs := dl.ExtractResources(filteredURLs, formatList, random, backupCheckbox.Checked, isParse)
 		resourceStats := make(map[string]int)
 		formatDict := make(map[string]string)
 		for _, item := range dl.FORMAT_LIST {
@@ -238,7 +282,7 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map
 		downloadVideoButton.Disable()
 
 		formatList := dl.FORMAT_VIDEO
-		resourceURLs := dl.ExtractResources(filteredURLs, formatList, random, backupCheckbox.Checked)
+		resourceURLs := dl.ExtractResources(filteredURLs, formatList, random, backupCheckbox.Checked, true)
 		if len(resourceURLs) == 0 {
 			dialog.NewError(fmt.Errorf("未解析到有效资源"), w).Show()
 			downloadButton.Enable()
@@ -259,7 +303,7 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map
 		container.NewPadded(),
 		container.NewBorder(nil, nil, nil, logCheckbox, downloadPart),
 		container.NewPadded(),
-		container.NewHBox(formatLabel, container.NewHBox(checkboxes...)),
+		container.NewHBox(formatLabel, formatContainer),
 		container.NewBorder(nil, nil, pathLabel, container.NewHBox(selectPathButton), pathEntry),
 		container.NewBorder(nil, nil, loginLabel, backupCheckbox, loginEntry),
 		container.NewPadded(),

@@ -370,7 +370,7 @@ func renameDuplicates(result []LinkData) []LinkData {
 	return unique
 }
 
-func ExtractResources(links []string, formatList []string, random bool, useBackup bool) []LinkData {
+func ExtractResources(links []string, formatList []string, random bool, useBackup bool, isParse bool) []LinkData {
 	var result []LinkData
 
 	var audio = false
@@ -381,8 +381,10 @@ func ExtractResources(links []string, formatList []string, random bool, useBacku
 		}
 	}
 	slog.Debug(fmt.Sprintf("formats=%v audio=%v random=%v backup=%v", formatList, audio, random, useBackup))
-
-	configURLList := parseURLList(links, audio, random, useBackup)
+	configURLList := links
+	if (isParse) {
+		configURLList = parseURLList(links, audio, random, useBackup)
+	}
 	slog.Debug(fmt.Sprintf("configURLList is %v", len(configURLList)))
 
 	for _, url := range configURLList {
@@ -441,5 +443,15 @@ func GenerateURLFromID(linkItems []LinkItem) []string {
 		}
 	}
 
+	return urls
+}
+
+func GenerateURLFromID2(linkItems []LinkItem) []string {
+	urls := []string{}
+	example_url := ReadingLibraryInfo.Detail
+	for _, linkItem := range linkItems {
+		url := fmt.Sprintf(example_url, linkItem.Link)
+		urls = append(urls, url)
+	}
 	return urls
 }

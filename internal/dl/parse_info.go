@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"log/slog"
 	"math/rand"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/hantang/smartedudlgo/internal/util"
 )
 
 func saveJSONToFile(jsonData []byte, filePath string) error {
@@ -338,8 +341,12 @@ func UpdateHierarchies2(bookBase *BookItem, tagMap map[string]string, docPDFList
 }
 
 func FetchRawData2(name string, local bool) BookItem {
-	tagData, dataList := readRawData(name, local)
+	slog.Debug(fmt.Sprintf("读取 %s", name))
+	if name == TAB_NAMES[3] {
+		return FetchReadingLibraryRawData(local)
+	}
 
+	tagData, dataList := readRawData(name, local)
 	tagBase := ParseHierarchies(tagData)
 	tagMap, _, docPDFList := ParseDataList(dataList)
 	slog.Debug(fmt.Sprintf("total docPDFList = %d", len(docPDFList)))
@@ -365,6 +372,163 @@ func FetchRawData2(name string, local bool) BookItem {
 	}
 
 	return BookItem{}
+}
+
+func FetchReadingLibraryRawData(local bool) BookItem {
+	// 诵读库数据解析：两层结构
+	dataDir := ReadingLibraryInfo.Directory
+	tagURL := ReadingLibraryInfo.Tag
+
+	// 解析 URL
+	parsedURL, err := url.Parse(strings.TrimSpace(tagURL))
+	if err != nil {
+		return BookItem{}
+	}
+	baseURL := parsedURL.Scheme + "://" + parsedURL.Host
+	slog.Debug(fmt.Sprintf("base url = %s", baseURL))
+
+	tagPath := path.Join(dataDir, path.Base(tagURL))
+	tagData, err, statusOK := fetchJSONFile(tagURL, tagPath, local)
+	if err != nil && statusOK {
+		return BookItem{}
+	}
+
+	// 抽取urls字段
+	var dv DataLibrary
+	if err := json.Unmarshal(tagData, &dv); err != nil {
+		return BookItem{}
+	}
+
+	dataList := [][]byte{}
+	for _, file := range dv.Files {
+		url := baseURL + file
+		dataPath := path.Join(dataDir, path.Base(url))
+		data, err, statusOK := fetchJSONFile(url, dataPath, local)
+		if err != nil && statusOK {
+			continue
+		}
+		dataList = append(dataList, data)
+	}
+
+	topTitle := "中小学语文示范诵读库"
+	topTagID := ""
+	tagMap := map[string]string{}
+	tagListMap := map[string][]BookItem{}
+
+	for _, data := range dataList {
+		var ReadingItemList []ReadingItem
+		if err := json.Unmarshal(data, &ReadingItemList); err != nil {
+			continue
+		}
+		for _, item := range ReadingItemList {
+			tags := item.Tags
+			isIgnore := true
+			if len(tags) != 2 {
+				continue
+			}
+			tagID := ""
+			for _, tag := range tags {
+				tagMap[tag.ID] = tag.Title
+				if tag.Title == topTitle {
+					isIgnore = false
+					if topTagID == "" {
+						topTagID = tag.ID
+					}
+				} else {
+					tagID = tag.ID
+				}
+			}
+			if isIgnore {
+				continue
+			}
+			if item.ResourceType == ReadingLibraryInfo.Type && tagID != "" {
+				bookItem := BookItem{
+					Level:    4,
+					Name:     item.Title,
+					BookName:  item.Title,
+					BookID:    item.UnitID,
+					Children: nil,
+					IsBook:   true,
+				}
+				tagListMap[tagID] = append(tagListMap[tagID], bookItem)
+			}
+		}
+	}
+	reversedTagMap := map[string]string{}
+	for k, v := range tagMap {
+		reversedTagMap[v] = k
+	}
+
+	// 手动新增分组
+	groupNames := []string{"一～三年级", "四～六年级", "七～九年级", "其他年级"}
+	gradeListMap := map[string][]string{}
+	for _, v := range tagMap {
+		if !strings.Contains(v, "年级") {
+			continue
+		}
+		key := groupNames[3]
+		if regexp.MustCompile(`^[一二三]年级[上下]?`).MatchString(v) {
+			key = groupNames[0]
+		} else if regexp.MustCompile(`^[四五六]年级[上下]?`).MatchString(v) {
+			key = groupNames[1]
+		} else if regexp.MustCompile(`^[七八九]年级[上下]?`).MatchString(v) {
+			key = groupNames[2]
+		}
+		slog.Debug(fmt.Sprintf("grade = %s, group = %s", v, key))
+		gradeListMap[key] = append(gradeListMap[key], v)
+	}
+
+	bookGroupItems := []BookItem{}
+	for _, group := range groupNames {
+		grades := gradeListMap[group]
+		if len(grades) == 0 {
+			continue
+		}
+		slog.Debug(fmt.Sprintf("group = %s, grades = %v", group, grades))
+		grades = util.SortGrades(grades)
+		slog.Debug(fmt.Sprintf("排序后：grades = %v", grades))
+
+		bookItems := []BookItem{}
+		for _, grade := range grades {
+			tagID := reversedTagMap[grade]
+			if len(tagListMap[tagID]) == 0 {
+				continue
+			}
+			bookItem := BookItem{
+				Level:    3,
+				Name:     group,
+				TagName:  grade,
+				TagID:    tagID,
+				Children: tagListMap[tagID],
+			}
+			bookItems = append(bookItems, bookItem)
+		}
+
+		bookGroupItems = append(bookGroupItems, BookItem{
+			Level:    2,
+			Name:     "年级分段",
+			TagName:  group,
+			TagID:    "",
+			Children: bookItems,
+		})
+	}
+
+	bookItemBase := BookItem{
+		Level:   0,
+		Name:    "分类",
+		TagName: topTitle,
+		TagID:   topTagID,
+		Children: []BookItem{
+			{
+				Level:    1,
+				Name:     "年级",
+				TagName:  topTitle,
+				TagID:    topTagID,
+				Children: bookGroupItems,
+			},
+		},
+	}
+	return bookItemBase
 }
 
 func Query2(bookItem BookItem) (string, []BookOption, []BookItem) {
