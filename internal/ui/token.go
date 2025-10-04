@@ -43,7 +43,6 @@ func (e *TokenEntry) saveToken() {
 	}
 }
 
-
 // 失去焦点时保存
 func (e *TokenEntry) FocusLost() {
 	e.saveToken()

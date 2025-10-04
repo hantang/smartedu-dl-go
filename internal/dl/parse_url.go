@@ -382,7 +382,7 @@ func ExtractResources(links []string, formatList []string, random bool, useBacku
 	}
 	slog.Debug(fmt.Sprintf("formats=%v audio=%v random=%v backup=%v", formatList, audio, random, useBackup))
 	configURLList := links
-	if (isParse) {
+	if isParse {
 		configURLList = parseURLList(links, audio, random, useBackup)
 	}
 	slog.Debug(fmt.Sprintf("configURLList is %v", len(configURLList)))

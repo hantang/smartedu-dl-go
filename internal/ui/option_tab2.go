@@ -69,11 +69,10 @@ func radioCallback(w fyne.Window, name string, tabData OptionTabData, linkItemMa
 	}
 }
 
-
 func createCheckboxes2(name string, tabData OptionTabData, linkItemMaps map[string][]dl.LinkItem, courseToc dl.CourseToc) {
 	labels := dl.TAB_NAMES_LABEL[name]
-    info := labels[1]
-    quantifier := labels[3]
+	info := labels[1]
+	quantifier := labels[3]
 
 	options := []string{}
 	optionMap := map[string]dl.CourseItem{}

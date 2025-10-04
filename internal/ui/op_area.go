@@ -134,7 +134,6 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map
 	downloadButton := widget.NewButtonWithIcon("下载已选择资源", theme.DownloadIcon(), nil)
 	downloadVideoButton := widget.NewButtonWithIcon("仅下载视频", theme.FileVideoIcon(), nil)
 
-
 	// Resource type checkboxes
 	formatLabel := widget.NewLabelWithStyle("🔖 资源类型: ", fyne.TextAlign(fyne.TextAlignLeading), fyne.TextStyle{Bold: true})
 	formatContainer := container.NewHBox()
