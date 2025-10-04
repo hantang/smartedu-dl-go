@@ -36,7 +36,7 @@
       - 部分音频下载可能失败（包括已配置登录信息）；
       - 非登录状态部分资源可能下载失败或下载的是旧版教材；
       - 新增备用解析，可能导致下载同一个下载多个对应PDF（可能不完全相同）。
-  - `v0.2.7` 
+  - `v0.2.7`
     - 新增课程包Tab页面
     - 支持视频下载（需要登录，单线程，保存格式`.ts`文件，用户可用**FFmpeg**等工具将之转化成其他视频格式）
     - 登录信息可仅配置Access Token
@@ -55,6 +55,10 @@
   - `v0.2.13`
     - 修复同名资源下载错误
     - 修订提示文字
+  - `v0.2.14`
+    - 修复未选择资源类型时出现下载按钮禁用问题
+    - 新增登录信息保存和预加载（或使用环境变量`SMARTEDU_TOKEN`）
+    - 新增中小学语文示范诵读库标签页面
 
 ## 🚨 备注
 
@@ -63,7 +67,8 @@
 如果下载教材不是最新版，需要配置登录信息，找到 **X-ND-AUTH** 字段。
 
 大致步骤：
-1. 浏览器打开：<https://basic.smartedu.cn/tchMaterial> 
+
+1. 浏览器打开：<https://basic.smartedu.cn/tchMaterial>
 2. 点击其中一本教材
 3. 弹出新的页面中选择登录
 4. 登录后重新打开教材页面，鼠标右键菜单中选择 **检查**（Inspect）/或者 `F12` 打开开发者工具 （DevTools）.
@@ -98,7 +103,7 @@
 ### Mac ARM芯片（M1-M4）
 
 单独配置
-```
+```shell
 sudo xattr -rd com.apple.quarantine /Applications/应用名.app
 ```
 
@@ -112,7 +117,7 @@ sudo spctl --master-disable
 ```
 
 2. 打开 “系统设置”，进入 “隐私与安全性”> “安全性”，选择 “任何来源” 选项。
-  （System Settings -> Priversy & Security -> Security -> Anywhere ） 
+  （System Settings -> Priversy & Security -> Security -> Anywhere ）
 
 ## 👷 开发
 
