@@ -23,7 +23,7 @@ func createRadiobuttons(w fyne.Window, name string, tabData OptionTabData, linkI
 		optionMap[name2] = opt.OptionID
 	}
 
-	tabData.StatsText.Set(fmt.Sprintf("课程（共%d项）：", len(options)))
+	tabData.StatsText.Set(fmt.Sprintf("💡 课程（共%d项）：", len(options)))
 	tabData.RadioDict = optionMap
 	tabData.RadioGroup.Options = options
 	tabData.RadioGroup.OnChanged = radioCallback(w, name, tabData, linkItemMaps)
@@ -69,8 +69,12 @@ func radioCallback(w fyne.Window, name string, tabData OptionTabData, linkItemMa
 	}
 }
 
+
 func createCheckboxes2(name string, tabData OptionTabData, linkItemMaps map[string][]dl.LinkItem, courseToc dl.CourseToc) {
-	info := "课程单元"
+	labels := dl.TAB_NAMES_LABEL[name]
+    info := labels[1]
+    quantifier := labels[3]
+
 	options := []string{}
 	optionMap := map[string]dl.CourseItem{}
 	for _, opt := range courseToc.Children {
@@ -78,7 +82,7 @@ func createCheckboxes2(name string, tabData OptionTabData, linkItemMaps map[stri
 		optionMap[opt.Title] = opt
 	}
 
-	tabData.CheckText.Set(fmt.Sprintf("%s（共%d项）：", info, len(options)))
+	tabData.CheckText.Set(fmt.Sprintf("%s（共%d%s）：", info, len(options), quantifier))
 	tabData.CheckGroup.Options = options
 	tabData.CheckGroup.SetSelected([]string{})
 	tabData.CheckGroup.OnChanged = func(items []string) {
@@ -90,7 +94,7 @@ func createCheckboxes2(name string, tabData OptionTabData, linkItemMaps map[stri
 			}
 			linkItemMaps[name] = append(linkItemMaps[name], linkItem)
 		}
-		tabData.CheckText.Set(fmt.Sprintf("%s（共%d项，已选%d项）：", info, len(options), len(items)))
+		tabData.CheckText.Set(fmt.Sprintf("%s（共%d%s，已选%d%s）：", info, len(options), quantifier, len(items), quantifier))
 	}
 
 	tabData.SelectAllButton.OnTapped = func() {
@@ -128,11 +132,12 @@ func CreateClassroomOptionsTab(w fyne.Window, linkItemMaps map[string][]dl.LinkI
 		CourseDict:      make(map[string][]dl.CourseToc),
 	}
 
+	labels := dl.TAB_NAMES_LABEL[dl.TAB_NAMES[2]]
 	tabData.QueryLabel.Bind(tabData.QueryText)
 	tabData.CheckLabel.Bind(tabData.CheckText)
 	tabData.RadioStatsLabel.Bind(tabData.StatsText)
-	tabData.QueryText.Set("🔍️ 点击加载课程教学内容")
-	tabData.CheckText.Set("⚗️ 课程包列表")
+	tabData.QueryText.Set(labels[0])
+	tabData.CheckText.Set(labels[1])
 	tabData.StatsText.Set("💡 请选择某一课程")
 
 	tabData.SelectAllButton.Disable()

@@ -95,13 +95,9 @@ func cleanData(tabData OptionTabData, name string, index int, linkItemMaps map[s
 	// 重置所有组件
 	resetComponents(tabData, index)
 
+	tabData.CheckText.Set(dl.TAB_NAMES_LABEL[name][1])
 	if name == dl.TAB_NAMES[2] {
-		tabData.CheckText.Set("⚗️ 课程包列表")
 		tabData.StatsText.Set("💡 请选择某一课程")
-	} else if name == dl.TAB_NAMES[3] {
-		tabData.CheckText.Set("🔊 音频资料")
-	} else {
-		tabData.CheckText.Set("🗃️ 电子教材")
 	}
 
 	// 清空数据
@@ -154,12 +150,10 @@ func updateComboboxes(w fyne.Window, tabData OptionTabData, name string, index i
 
 func createCheckboxes(name string, tabData OptionTabData, linkItemMaps map[string][]dl.LinkItem, bookOptions []dl.BookOption) {
 	// left part: checkboxes for book(PDF)
-	info := "电子教材"
-	quantifier := "册"
-	if name == dl.TAB_NAMES[3] {
-		info = "语文课文"
-		quantifier = "篇"
-	}
+	labels := dl.TAB_NAMES_LABEL[name]
+	info := labels[1]
+	quantifier := labels[3]
+
 	options := []string{}
 	optionMap := map[string]string{}
 	for i, opt := range bookOptions {
@@ -200,12 +194,7 @@ func initRightPart(w fyne.Window, linkItemMaps map[string][]dl.LinkItem, tabData
 	// right part: comboboxes for categories
 	bookItemsHistory := make([]dl.BookItem, arrayLen+1)
 	comboContainers := make([]fyne.CanvasObject, arrayLen)
-	info := "教材"
-	if name == dl.TAB_NAMES[2] {
-		info = "课程"
-	} else if name == dl.TAB_NAMES[3] {
-		info = "诵读音频"
-	}
+	info := dl.TAB_NAMES_LABEL[name][2]
 
 	for i := range tabData.ComboLabelArray {
 		tabData.ComboLabelArray[i] = widget.NewLabel(placeholders[i])
@@ -271,10 +260,11 @@ func CreateMaterialOptionsTab(w fyne.Window, linkItemMaps map[string][]dl.LinkIt
 	}
 
 	// 绑定文本
+	labels := dl.TAB_NAMES_LABEL[dl.TAB_NAMES[2]]
 	tabData.QueryLabel.Bind(tabData.QueryText)
 	tabData.CheckLabel.Bind(tabData.CheckText)
-	tabData.QueryText.Set("🔍️ 点击查询、加载教材信息")
-	tabData.CheckText.Set("🗃️ 电子教材")
+	tabData.QueryText.Set(labels[0])
+	tabData.CheckText.Set(labels[1])
 
 	tabData.SelectAllButton.Disable()
 	tabData.CancelAllButton.Disable()

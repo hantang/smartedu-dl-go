@@ -205,14 +205,13 @@ func ParseURLsFromJSON(data []byte) ([]string, error) {
 }
 
 func readRawData(name string, local bool) ([]byte, [][]byte) {
-	dataDir := TchMaterialInfo.Directory
-	tagURL := TchMaterialInfo.Tag
-	versionURL := TchMaterialInfo.Version
+	configInfo := TchMaterialInfo
 	if name == TAB_NAMES[2] {
-		dataDir = SyncClassroomInfo.Directory
-		tagURL = SyncClassroomInfo.Tag
-		versionURL = SyncClassroomInfo.Version
+		configInfo = SyncClassroomInfo
 	}
+	dataDir := configInfo.Directory
+	tagURL := configInfo.Tag
+	versionURL := configInfo.Version
 
 	var tagData []byte
 	dataList := [][]byte{}
@@ -445,8 +444,8 @@ func FetchReadingLibraryRawData(local bool) BookItem {
 				bookItem := BookItem{
 					Level:    4,
 					Name:     item.Title,
-					BookName:  item.Title,
-					BookID:    item.UnitID,
+					BookName: item.Title,
+					BookID:   item.UnitID,
 					Children: nil,
 					IsBook:   true,
 				}

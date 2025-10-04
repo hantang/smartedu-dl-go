@@ -34,6 +34,12 @@ var TAB_NAMES = []string{
 	"诵读库",
 }
 
+var TAB_NAMES_LABEL = map[string][]string{
+	"教材列表": {"🔍️ 点击查询、加载教材信息", "🗃️ 电子教材", "教材", "项"},
+	"课件包":  {"🔍️ 点击加载课程教学内容", "⚗️ 课程单元", "课程", "项"},
+	"诵读库":  {"🔍️ 点击加载诵读音频资料（语博书屋）", "🔊 课文音频", "诵读音频", "篇"},
+}
+
 // 电子教材（层级和列表数据等） https://basic.smartedu.cn/tchMaterial
 var TchMaterialInfo = ResourceMetaInfo{
 	Directory: "data/tchMaterial",

@@ -27,10 +27,11 @@ func CreateReadingOptionsTab(w fyne.Window, linkItemMaps map[string][]dl.LinkIte
 	}
 
 	// 绑定文本
+	labels := dl.TAB_NAMES_LABEL[dl.TAB_NAMES[3]]
 	tabData.QueryLabel.Bind(tabData.QueryText)
 	tabData.CheckLabel.Bind(tabData.CheckText)
-	tabData.QueryText.Set("🔍️ 点击加载语文诵读库音频资料（语博书屋）")
-	tabData.CheckText.Set("🔊 音频资料")
+	tabData.QueryText.Set(labels[0])
+	tabData.CheckText.Set(labels[1])
 
 	tabData.SelectAllButton.Disable()
 	tabData.CancelAllButton.Disable()
