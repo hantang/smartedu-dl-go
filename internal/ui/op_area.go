@@ -184,6 +184,8 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map
 
 		if len(formatList) == 0 {
 			dialog.NewInformation("警告", "请勾选至少1个资源类型", w).Show()
+			downloadButton.Enable()
+			downloadVideoButton.Enable()	
 			return
 		}
 		slog.Info(fmt.Sprintf("formatList count = %d", len(formatList)))
