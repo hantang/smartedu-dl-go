@@ -377,10 +377,11 @@ func getTempDirFromHash(input string, prefix string) (string, error) {
 }
 
 // downloads a M3U8 video and save it to MP4 file
-func DownloadM3U8(m3u8URL, savePath string, headers map[string]string, downloadedBytes *atomic.Int64, maxConcurrency int) error {
+func DownloadM3U8(m3u8URL, savePath string, headers map[string]string, downloadedBytes *atomic.Int64, maxConcurrency int) (int, error) {
+	statusCode := -1
 	req, err := http.NewRequest("GET", m3u8URL, nil)
 	if err != nil {
-		return fmt.Errorf("创建 GET 请求失败: %w", err)
+		return statusCode, fmt.Errorf("创建 GET 请求失败: %w", err)
 	}
 	for k, v := range headers {
 		req.Header.Set(k, v)
@@ -390,25 +391,27 @@ func DownloadM3U8(m3u8URL, savePath string, headers map[string]string, downloade
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("获取 M3U8 播放列表失败: %w", err)
+		return statusCode, fmt.Errorf("获取 M3U8 播放列表失败: %w", err)
 	}
+	slog.Debug(fmt.Sprintf("Fetch Video status code %v", resp.StatusCode))
+	statusCode = resp.StatusCode
 	defer resp.Body.Close()
 
 	playlist, listType, err := m3u8.DecodeFrom(resp.Body, true)
 	if err != nil {
-		return fmt.Errorf("解析 M3U8 播放列表失败: %w", err)
+		return statusCode, fmt.Errorf("解析 M3U8 播放列表失败: %w", err)
 	}
 
 	var segments []*m3u8.MediaSegment
 	if listType != m3u8.MEDIA {
-		return fmt.Errorf("不是媒体播放列表")
+		return statusCode, fmt.Errorf("不是媒体播放列表")
 	}
 
 	mediaPlaylist := playlist.(*m3u8.MediaPlaylist)
 	segments = mediaPlaylist.Segments
 	keyURL, keyID, iv, err := extractM3u8Info(*mediaPlaylist)
 	if err != nil {
-		return err
+		return statusCode, err
 	}
 
 	// 允许key为空，不加密
@@ -421,7 +424,7 @@ func DownloadM3U8(m3u8URL, savePath string, headers map[string]string, downloade
 
 	saveFile, err := os.Create(savePath)
 	if err != nil {
-		return fmt.Errorf("创建文件(%s)失败: %w", savePath, err)
+		return statusCode, fmt.Errorf("创建文件(%s)失败: %w", savePath, err)
 	}
 	defer saveFile.Close()
 
@@ -441,11 +444,11 @@ func DownloadM3U8(m3u8URL, savePath string, headers map[string]string, downloade
 
 	tempDir, err := getTempDirFromHash(baseURL, APP_NAME)
 	if err != nil {
-		return err
+		return statusCode, err
 	}
 	slog.Debug(fmt.Sprintf("tempDir: %s\nmaxConcurrency: %d\nTS count: %d", tempDir, maxConcurrency, len(segmentURLList)))
 
 	downloadAllTS(tempDir, segmentURLList, headers, maxConcurrency, downloadedBytes)
 	mergeTSFiles(tempDir, savePath, segmentURLList, key, iv)
-	return nil
+	return statusCode, nil
 }

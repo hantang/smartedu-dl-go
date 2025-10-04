@@ -15,6 +15,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/hantang/smartedudlgo/internal/dl"
+	"github.com/hantang/smartedudlgo/internal/util"
 )
 
 func createFormatCheckboxes() []fyne.CanvasObject {
@@ -50,17 +51,9 @@ func extractDownloadInfo(w fyne.Window, pathEntry *widget.Entry, defaultPath str
 	return downloadPath
 }
 
-func initHeaders(loginEntry *widget.Entry) map[string]string {
-	authInfo := ""
-	if loginEntry.Text != "" {
-		authInfo = loginEntry.Text
-	}
-	if authInfo != "" && !strings.HasPrefix(authInfo, "MAC id") {
-		// only acess token
-		authInfo = fmt.Sprintf(`MAC id="%s",nonce="0",mac="0"`, authInfo)
-	}
-
+func initHeaders(token string) map[string]string {
 	headers := map[string]string{}
+	authInfo := util.FulfillToken(token)
 	if authInfo != "" {
 		headers["x-nd-auth"] = authInfo
 	}
@@ -129,8 +122,16 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map
 
 	// user log info
 	loginLabel := widget.NewLabelWithStyle("🍪 登录信息: ", fyne.TextAlign(fyne.TextAlignLeading), fyne.TextStyle{Bold: true})
-	loginEntry := widget.NewEntry()
-	loginEntry.SetPlaceHolder("请在浏览器登录账号后，填写X-Nd-Auth值或者Access Token")
+	loginEntry := NewTokenEntry()
+
+	// 预读取token
+	token, err := util.GetToken()
+	if err == nil {
+		slog.Info("配置登录信息成功")
+		loginEntry.SetText(token)
+	} else {
+		loginEntry.SetPlaceHolder("请在浏览器登录账号后，填写X-Nd-Auth值或者Access Token")
+	}
 
 	// Save path display and button
 	defaultPath, _ := os.UserHomeDir()
@@ -168,7 +169,7 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map
 			return
 		}
 		downloadPath := extractDownloadInfo(w, pathEntry, defaultPath, pathComment)
-		headers := initHeaders(loginEntry)
+		headers := initHeaders(loginEntry.Text)
 
 		// 下载进行中禁止再次点击
 		downloadButton.Disable()
@@ -185,7 +186,7 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map
 		if len(formatList) == 0 {
 			dialog.NewInformation("警告", "请勾选至少1个资源类型", w).Show()
 			downloadButton.Enable()
-			downloadVideoButton.Enable()	
+			downloadVideoButton.Enable()
 			return
 		}
 		slog.Info(fmt.Sprintf("formatList count = %d", len(formatList)))
@@ -230,7 +231,7 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map
 			return
 		}
 		downloadPath := extractDownloadInfo(w, pathEntry, defaultPath, pathComment)
-		headers := initHeaders(loginEntry)
+		headers := initHeaders(loginEntry.Text)
 
 		// 下载进行中禁止再次点击
 		downloadButton.Disable()

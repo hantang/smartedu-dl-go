@@ -36,10 +36,10 @@ func DownloadFile(url, savePath string) error {
 	slog.Info("Save file to " + dest)
 
 	resp, err := http.Get(url)
-	slog.Debug(fmt.Sprintf("status code %v", resp.StatusCode))
 	if err != nil {
 		return err
 	}
+	slog.Debug(fmt.Sprintf("Download file status code %v", resp.StatusCode))
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("failed to download file: status code %d", resp.StatusCode)
 	}
@@ -59,11 +59,11 @@ func DownloadFile(url, savePath string) error {
 
 func FetchJsonData(url string) ([]byte, error, bool) {
 	resp, err := http.Get(url)
-	slog.Debug(fmt.Sprintf("status code %v", resp.StatusCode))
 	if err != nil {
 		slog.Warn(fmt.Sprintf("Error fetching JSON data: %s", err))
 		return nil, err, false
 	}
+	slog.Debug(fmt.Sprintf("Fetch JSON status code %v", resp.StatusCode))
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)

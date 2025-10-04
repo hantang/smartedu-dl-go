@@ -91,20 +91,23 @@ func (dm *DownloadManager) StartDownload(downloadButton *widget.Button, download
 
 	// Start downloads
 	successCount := 0
+	tokenValid := true
 	results := []string{"\nlog-time,success,file-size,save-path,raw-url,extra-url"}
 	for _, file := range dm.links {
 		wg.Add(1)
 		go func(file LinkData) {
-			var isSuccess bool
-			var outputPath string
+			isSuccess, statusCode, outputPath := false, 0, ""
 			if isVideo {
-				isSuccess, outputPath = dm.downloadVideoFile(&wg, file, &downloadedBytes, headers, maxConcurrency)
+				isSuccess, statusCode, outputPath = dm.downloadVideoFile(&wg, file, &downloadedBytes, headers, maxConcurrency)
 			} else {
-				isSuccess, outputPath = dm.downloadFile(&wg, file, &downloadedBytes, headers)
+				isSuccess, statusCode, outputPath = dm.downloadFile(&wg, file, &downloadedBytes, headers)
 			}
 			downloadedFiles.Add(int64(1))
 			if isSuccess {
 				successCount++
+			}
+			if statusCode == 401 { // token 失效
+				tokenValid = false
 			}
 
 			// TODO 更好的日志格式，目前是csv
@@ -145,8 +148,11 @@ func (dm *DownloadManager) StartDownload(downloadButton *widget.Button, download
 
 		fyne.DoAndWait(func() {
 			dm.statusLabel.SetText(fmt.Sprintf("下载完成：成功/失败 = %d/%d", successCount, failedCount))
-			dialog.NewInformation("完成", "文件下载完成\n"+statsInfo, dm.window).Show()
-
+			if tokenValid && successCount > 0 {
+				dialog.NewInformation("结果", "文件下载完成：\n"+statsInfo, dm.window).Show()
+			} else {
+				dialog.ShowError(fmt.Errorf("⚠️  【登录信息】可能错误或者失效\n\n文件下载结果：\n%s", statsInfo), dm.window)
+			}
 			downloadButton.Enable()
 			downloadVideoButton.Enable()
 		})
@@ -206,7 +212,7 @@ func sanitizeFilename(s string) string {
 	return s
 }
 
-func (dm *DownloadManager) downloadFile(wg *sync.WaitGroup, file LinkData, downloadedBytes *atomic.Int64, headers map[string]string) (bool, string) {
+func (dm *DownloadManager) downloadFile(wg *sync.WaitGroup, file LinkData, downloadedBytes *atomic.Int64, headers map[string]string) (bool, int, string) {
 	defer wg.Done()
 	url := file.BackupURL
 	for _, v := range headers {
@@ -226,9 +232,14 @@ func (dm *DownloadManager) downloadFile(wg *sync.WaitGroup, file LinkData, downl
 
 	resp, err := (&http.Client{}).Do(req)
 	// resp, err := http.Get(file.URL)
-	if err != nil || resp.StatusCode != 200 {
-		slog.Warn(fmt.Sprintf("下载 %s 状态：%v 出错：%v", file.Title, resp.StatusCode, err))
-		return false, ""
+	if err != nil {
+		slog.Warn(fmt.Sprintf("下载 %s 出错: %v", file.Title, err))
+		return false, -1, ""
+	}
+	statusCode := resp.StatusCode
+	if statusCode != 200 {
+		slog.Warn(fmt.Sprintf("下载 %s 状态异常: %v", file.Title, resp.StatusCode))
+		return false, statusCode, ""
 	}
 	defer resp.Body.Close()
 
@@ -238,10 +249,11 @@ func (dm *DownloadManager) downloadFile(wg *sync.WaitGroup, file LinkData, downl
 	out, err := os.Create(outputPath)
 	if err != nil {
 		slog.Warn(fmt.Sprintf("创建文件 %s 出错：%v\n", outputPath, err))
-		return false, outputPath
+		return false, statusCode, outputPath
 	}
 	defer out.Close()
 
+	isSuccess := true
 	buffer := make([]byte, 32*1024) // 32KB大小
 	for {
 		n, err := resp.Body.Read(buffer)
@@ -250,21 +262,24 @@ func (dm *DownloadManager) downloadFile(wg *sync.WaitGroup, file LinkData, downl
 		}
 		if err != nil {
 			slog.Warn(fmt.Sprintf("读取 %s 出错：%v\n", file.Title, err))
-			return false, outputPath
+			isSuccess = false
+			break
+
 		}
 		if n > 0 {
 			// Write to file
 			if _, err := out.Write(buffer[:n]); err != nil {
 				slog.Warn(fmt.Sprintf("写入文件 %s 出错：%v\n", file.Title, err))
-				return false, outputPath
+				isSuccess = false
+				break
 			}
 			downloadedBytes.Add(int64(n))
 		}
 	}
-	return true, outputPath
+	return isSuccess, statusCode, outputPath
 }
 
-func (dm *DownloadManager) downloadVideoFile(wg *sync.WaitGroup, file LinkData, downloadedBytes *atomic.Int64, headers map[string]string, maxConcurrency int) (bool, string) {
+func (dm *DownloadManager) downloadVideoFile(wg *sync.WaitGroup, file LinkData, downloadedBytes *atomic.Int64, headers map[string]string, maxConcurrency int) (bool, int, string) {
 	defer wg.Done()
 	url := file.BackupURL
 	for _, v := range headers {
@@ -278,10 +293,11 @@ func (dm *DownloadManager) downloadVideoFile(wg *sync.WaitGroup, file LinkData, 
 	filename := sanitizeFilename(file.Title)
 	outputPath := getSavePath(dm.downloadsDir, filename, file.Format)
 
-	err := DownloadM3U8(url, outputPath, headers, downloadedBytes, maxConcurrency)
-	if err != nil {
+	statusCode, err := DownloadM3U8(url, outputPath, headers, downloadedBytes, maxConcurrency)
+	isSuccess := true
+	if err != nil || statusCode != 200 {
 		slog.Warn(fmt.Sprintf("下载出错 %v", err))
-		return false, outputPath
+		isSuccess = false
 	}
-	return true, outputPath
+	return isSuccess, statusCode, outputPath
 }
