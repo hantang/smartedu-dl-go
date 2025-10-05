@@ -8,11 +8,11 @@
 
 ## 📝 功能说明
 
-主要支持`smartedu.cn`教材、课件（PDF 格式）下载存储。
+主要支持`smartedu.cn`教材、课件（PDF 格式、视频、音频）、语文诵读音频等下载存储。
 
 ### 🖥️ 截图
 
-> 仅供参考，不一定是最新版界面。
+> 仅供参考，新版界面可能已调整。
 
 | 平台    | 页面     | 暗黑                       | 明亮                        |
 | ------- | -------- | -------------------------- | --------------------------- |
@@ -26,39 +26,7 @@
 
 ### ⚡️ 更新
 
-- [x] 链接输入列表下载(`v0.1.x`)
-- [x] 教材查询列表下载(`v0.2.x`) 【推荐版本】
-  - `v0.2.0` ~ `v0.2.6`
-    - 支持登录信息配置（devtools/network选择pdf文件找到Request Headers中`x-nd-auth`参数）
-    - 增加日志统计（结果保存在`log-smartedudl.txt`）
-    - 增加备用解析链接
-    - 已知问题：
-      - 部分音频下载可能失败（包括已配置登录信息）；
-      - 非登录状态部分资源可能下载失败或下载的是旧版教材；
-      - 新增备用解析，可能导致下载同一个下载多个对应PDF（可能不完全相同）。
-  - `v0.2.7`
-    - 新增课程包Tab页面
-    - 支持视频下载（需要登录，单线程，保存格式`.ts`文件，用户可用**FFmpeg**等工具将之转化成其他视频格式）
-    - 登录信息可仅配置Access Token
-    - 修改字体为“抖音美好体” 来自[:link:](https://github.com/bytedance/fonts)
-  - `v0.2.8`/`v0.2.9`
-    - 修复“精品课程”解析
-  - `v0.2.10`
-    - 修复保存文件名（去除标题中特殊字符）
-  - `v0.2.11`
-    - 修正保存路径问题
-    - 下载资源根据URL路径去除重复
-  - `v0.2.12`
-    - 修复非加密视频下载错误
-    - 支持直接输入资源链接
-    - 支持多线程下载视频
-  - `v0.2.13`
-    - 修复同名资源下载错误
-    - 修订提示文字
-  - `v0.2.14`
-    - 修复未选择资源类型时出现下载按钮禁用问题
-    - 新增登录信息保存和预加载（或使用环境变量`SMARTEDU_TOKEN`）
-    - 新增中小学语文示范诵读库标签页面
+- [更新记录](CHANGELOG.md)
 
 ## 🚨 备注
 
@@ -93,7 +61,7 @@
 })();
 ```
 
-其中 ND_UC_AUTH 完整取值为`ND_UC_AUTH-{sdpAppId}&ncet-xedu&token`
+其中 *ND_UC_AUTH* 完整取值为`ND_UC_AUTH-{sdpAppId}&ncet-xedu&token`
 
 ```javascript
 // 打开页面 https://auth.smartedu.cn/uias/login
@@ -134,7 +102,7 @@ go run main.go --debug --local
 ## 🌐 相关项目
 
 - 旧版（python）
-  - [hantang/smartedu-dl](https://github.com/hantang/smartedu-dl)
+  - ~~[hantang/smartedu-dl](https://github.com/hantang/smartedu-dl)~~
 
 - 类似项目
   - [happycola233/tchMaterial-parser](https://github.com/happycola233/tchMaterial-parser)
