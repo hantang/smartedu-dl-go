@@ -1,6 +1,11 @@
 name: "CI"
+
 on:
   push:
+    branches:
+      - "main"
+    tags-ignore:
+      - "**"
     paths:
       - "**/*.go"
       - ".github/workflows/ci.yml"
