@@ -45,6 +45,7 @@ Tab页面：
   - 修复未选择资源类型时出现下载按钮禁用问题
   - 新增登录信息保存和预加载（或使用环境变量`SMARTEDU_TOKEN`） [#9][issue-9]
   - 新增中小学语文示范诵读库标签页面
+- `v0.2.15` 没有功能更新，仅更新依赖模块。
 
 [bytedance-fonts]: https://github.com/bytedance/fonts
 

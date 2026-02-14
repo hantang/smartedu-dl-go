@@ -68,9 +68,12 @@
 (document.documentElement.outerHTML.match(/sdpAppId: "([\da-fA-F\-]+)"/) || [])[1];
 ```
 
-### Mac ARM芯片（M1-M4）
+获取accessToken后，也可以通过拼接地址手动下载，拼接规则：`<文件地址>?accessToken=<accessToken的值>`
 
-单独配置
+### Mac ARM芯片（M1等）
+
+单独配置（推荐）
+
 ```shell
 sudo xattr -rd com.apple.quarantine /Applications/应用名.app
 ```
@@ -108,13 +111,12 @@ go run main.go --debug --local
 
 ## 🌐 相关项目
 
-- 旧版（python）
-  - ~~[hantang/smartedu-dl](https://github.com/hantang/smartedu-dl)~~
-
 - 类似项目
   - [happycola233/tchMaterial-parser](https://github.com/happycola233/tchMaterial-parser)
   - [52beijixing/smartedu-download](https://github.com/52beijixing/smartedu-download)
-  - 智慧教育平台电子教材下载器 <https://www.52pojie.cn/thread-1891126-1-1.html>
+  - 智慧教育平台电子教材下载器
+    - <https://www.52pojie.cn/thread-2036716-1-1.html>
+    - <https://www.52pojie.cn/thread-1891126-1-1.html>
   - [cjhdevact/FlyEduDownloader](https://github.com/cjhdevact/FlyEduDownloader)
 
 - 图标：修改自<https://www.smartedu.cn/>
