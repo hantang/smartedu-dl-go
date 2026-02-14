@@ -91,7 +91,14 @@ sudo spctl --master-disable
 
 ```shell
 # go语言开发环境
+# 镜像
+# export GOPROXY=https://goproxy.cn/,direct
 
+# 更新依赖
+# go get go@latest
+# go get -u
+
+# 执行
 go mod tidy
 go run main.go
 
