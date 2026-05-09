@@ -10,7 +10,7 @@ import (
 	"github.com/hantang/smartedudlgo/internal/dl"
 )
 
-func CreateReadingOptionsTab(w fyne.Window, linkItemMaps map[string][]dl.LinkItem, name string, isLocal bool, arrayLen int) *fyne.Container {
+func CreateReadingOptionsTab(w fyne.Window, linkItemMaps map[string][]dl.LinkItem, name string, isLocal bool, saveFetchedData bool, arrayLen int) *fyne.Container {
 	var tabData = OptionTabData{
 		InitTabData:     false,
 		ComboLabelArray: make([]*widget.Label, arrayLen),
@@ -44,6 +44,6 @@ func CreateReadingOptionsTab(w fyne.Window, linkItemMaps map[string][]dl.LinkIte
 	scrollContainer.SetMinSize(fyne.NewSize(300, 400))
 	left := container.NewBorder(tabData.CheckLabel, bottom, nil, nil, scrollContainer)
 
-	right := initRightPart(w, linkItemMaps, tabData, name, isLocal, arrayLen)
+	right := initRightPart(w, linkItemMaps, tabData, name, isLocal, saveFetchedData, arrayLen)
 	return container.NewBorder(nil, nil, nil, nil, container.NewHSplit(left, right))
 }

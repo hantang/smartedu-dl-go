@@ -13,7 +13,7 @@ import (
 	"github.com/hantang/smartedudlgo/internal/dl"
 )
 
-func InitUI(isLocal bool, maxConcurrency int) {
+func InitUI(isLocal bool, maxConcurrency int, saveFetchedData bool) {
 	a := app.New()
 
 	customTheme := NewCustomTheme()
@@ -52,9 +52,9 @@ func InitUI(isLocal bool, maxConcurrency int) {
 	}
 
 	tabContainer := container.NewAppTabs(
-		container.NewTabItemWithIcon(tabs[1], theme.ListIcon(), CreateMaterialOptionsTab(w, linkItemMaps, tabs[1], isLocal, 5)),
-		container.NewTabItemWithIcon(tabs[2], theme.MediaVideoIcon(), CreateClassroomOptionsTab(w, linkItemMaps, tabs[2], isLocal, 6)),
-		container.NewTabItemWithIcon(tabs[3], theme.FileAudioIcon(), CreateReadingOptionsTab(w, linkItemMaps, tabs[3], isLocal, 3)),
+		container.NewTabItemWithIcon(tabs[1], theme.ListIcon(), CreateMaterialOptionsTab(w, linkItemMaps, tabs[1], isLocal, saveFetchedData, 5)),
+		container.NewTabItemWithIcon(tabs[2], theme.MediaVideoIcon(), CreateClassroomOptionsTab(w, linkItemMaps, tabs[2], isLocal, saveFetchedData, 6)),
+		container.NewTabItemWithIcon(tabs[3], theme.FileAudioIcon(), CreateReadingOptionsTab(w, linkItemMaps, tabs[3], isLocal, saveFetchedData, 3)),
 		container.NewTabItemWithIcon(tabs[0], theme.ContentPasteIcon(), CreateInputTab(w, linkItemMaps, tabs[0], false, 0)),
 	)
 

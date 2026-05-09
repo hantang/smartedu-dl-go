@@ -109,7 +109,7 @@ func createCheckboxes2(name string, tabData OptionTabData, linkItemMaps map[stri
 	tabData.CancelAllButton.Enable()
 }
 
-func CreateClassroomOptionsTab(w fyne.Window, linkItemMaps map[string][]dl.LinkItem, name string, isLocal bool, arrayLen int) *fyne.Container {
+func CreateClassroomOptionsTab(w fyne.Window, linkItemMaps map[string][]dl.LinkItem, name string, isLocal bool, saveFetchedData bool, arrayLen int) *fyne.Container {
 	var tabData = OptionTabData{
 		ComboLabelArray: make([]*widget.Label, arrayLen),
 		ComboboxArray:   make([]*widget.Select, arrayLen),
@@ -151,6 +151,6 @@ func CreateClassroomOptionsTab(w fyne.Window, linkItemMaps map[string][]dl.LinkI
 	leftTop := container.NewBorder(tabData.RadioStatsLabel, nil, nil, nil, tabData.RadioGroup)
 	left := container.NewVSplit(leftTop, leftDown)
 
-	right := initRightPart(w, linkItemMaps, tabData, name, isLocal, arrayLen)
+	right := initRightPart(w, linkItemMaps, tabData, name, isLocal, saveFetchedData, arrayLen)
 	return container.NewBorder(nil, nil, nil, nil, container.NewHSplit(left, right))
 }

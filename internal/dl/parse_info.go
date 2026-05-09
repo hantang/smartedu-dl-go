@@ -162,23 +162,26 @@ func ParseHierarchies(data []byte) TagBase {
 	return tagBase
 }
 
-func fetchJSONFile(url string, filePath string, local bool) ([]byte, error, bool) {
+func fetchJSONFile(url string, filePath string, local bool, save bool) ([]byte, error, bool) {
 	slog.Debug(fmt.Sprintf("process path = %s / file = %s", url, filePath))
-	if !local {
+	if local {
+		if _, err := os.Stat(filePath); err == nil {
+			slog.Debug("Read local data from " + filePath)
+			data, err := os.ReadFile(filePath)
+			return data, err, true
+		}
+		slog.Debug("Local file do not exists, try fetch data from " + url)
+	} else {
 		slog.Debug("Fetch data from " + url)
-		return FetchJsonData(url)
 	}
 
-	if _, err := os.Stat(filePath); err == nil {
-		data, err := os.ReadFile(filePath)
-		return data, err, true
-	} else {
-		slog.Debug("Local file do not exists, try fetch data from " + url)
-		data, err, status := FetchJsonData(url)
-		// save json data
-		saveJSONToFile(data, filePath)
-		return data, err, status
+	data, err, status := FetchJsonData(url)
+	if save && err == nil && status {
+		if err := saveJSONToFile(data, filePath); err != nil {
+			slog.Warn(fmt.Sprintf("Save json data failed: %v", err))
+		}
 	}
+	return data, err, status
 }
 
 func ParseURLsFromJSON(data []byte) ([]string, error) {
@@ -204,7 +207,7 @@ func ParseURLsFromJSON(data []byte) ([]string, error) {
 	}
 }
 
-func readRawData(name string, local bool) ([]byte, [][]byte) {
+func readRawData(name string, local bool, save bool) ([]byte, [][]byte) {
 	configInfo := TchMaterialInfo
 	if name == TAB_NAMES[2] {
 		configInfo = SyncClassroomInfo
@@ -219,12 +222,12 @@ func readRawData(name string, local bool) ([]byte, [][]byte) {
 	tagPath := path.Join(dataDir, path.Base(tagURL))
 	versionPath := path.Join(dataDir, path.Base(versionURL))
 
-	tagData, err, statusOK := fetchJSONFile(tagURL, tagPath, local)
+	tagData, err, statusOK := fetchJSONFile(tagURL, tagPath, local, save)
 	if err != nil && statusOK {
 		return tagData, dataList
 	}
 
-	versionData, err, statusOK := fetchJSONFile(versionURL, versionPath, local)
+	versionData, err, statusOK := fetchJSONFile(versionURL, versionPath, local, save)
 	if err != nil && statusOK {
 		return tagData, dataList
 	}
@@ -236,7 +239,7 @@ func readRawData(name string, local bool) ([]byte, [][]byte) {
 
 	for _, url := range urls {
 		dataPath := path.Join(dataDir, path.Base(url))
-		data, err, statusOK := fetchJSONFile(url, dataPath, local)
+		data, err, statusOK := fetchJSONFile(url, dataPath, local, save)
 		if err != nil && statusOK {
 			continue
 		}
@@ -339,13 +342,13 @@ func UpdateHierarchies2(bookBase *BookItem, tagMap map[string]string, docPDFList
 	}
 }
 
-func FetchRawData2(name string, local bool) BookItem {
+func FetchRawData2(name string, local bool, save bool) BookItem {
 	slog.Debug(fmt.Sprintf("读取 %s", name))
 	if name == TAB_NAMES[3] {
-		return FetchReadingLibraryRawData(local)
+		return FetchReadingLibraryRawData(local, save)
 	}
 
-	tagData, dataList := readRawData(name, local)
+	tagData, dataList := readRawData(name, local, save)
 	tagBase := ParseHierarchies(tagData)
 	tagMap, _, docPDFList := ParseDataList(dataList)
 	slog.Debug(fmt.Sprintf("total docPDFList = %d", len(docPDFList)))
@@ -373,7 +376,7 @@ func FetchRawData2(name string, local bool) BookItem {
 	return BookItem{}
 }
 
-func FetchReadingLibraryRawData(local bool) BookItem {
+func FetchReadingLibraryRawData(local bool, save bool) BookItem {
 	// 诵读库数据解析：两层结构
 	dataDir := ReadingLibraryInfo.Directory
 	tagURL := ReadingLibraryInfo.Tag
@@ -387,7 +390,7 @@ func FetchReadingLibraryRawData(local bool) BookItem {
 	slog.Debug(fmt.Sprintf("base url = %s", baseURL))
 
 	tagPath := path.Join(dataDir, path.Base(tagURL))
-	tagData, err, statusOK := fetchJSONFile(tagURL, tagPath, local)
+	tagData, err, statusOK := fetchJSONFile(tagURL, tagPath, local, save)
 	if err != nil && statusOK {
 		return BookItem{}
 	}
@@ -402,7 +405,7 @@ func FetchReadingLibraryRawData(local bool) BookItem {
 	for _, file := range dv.Files {
 		url := baseURL + file
 		dataPath := path.Join(dataDir, path.Base(url))
-		data, err, statusOK := fetchJSONFile(url, dataPath, local)
+		data, err, statusOK := fetchJSONFile(url, dataPath, local, save)
 		if err != nil && statusOK {
 			continue
 		}

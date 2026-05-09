@@ -190,7 +190,7 @@ func createCheckboxes(name string, tabData OptionTabData, linkItemMaps map[strin
 	tabData.CancelAllButton.Enable()
 }
 
-func initRightPart(w fyne.Window, linkItemMaps map[string][]dl.LinkItem, tabData OptionTabData, name string, isLocal bool, arrayLen int) *fyne.Container {
+func initRightPart(w fyne.Window, linkItemMaps map[string][]dl.LinkItem, tabData OptionTabData, name string, isLocal bool, saveFetchedData bool, arrayLen int) *fyne.Container {
 	// right part: comboboxes for categories
 	bookItemsHistory := make([]dl.BookItem, arrayLen+1)
 	comboContainers := make([]fyne.CanvasObject, arrayLen)
@@ -223,7 +223,7 @@ func initRightPart(w fyne.Window, linkItemMaps map[string][]dl.LinkItem, tabData
 		}
 
 		go func() {
-			bookBase := dl.FetchRawData2(name, isLocal)
+			bookBase := dl.FetchRawData2(name, isLocal, saveFetchedData)
 			fyne.Do(func() {
 				if name != dl.TAB_NAMES[1] {
 					if bookBase.Name != "" {
@@ -254,7 +254,7 @@ func initRightPart(w fyne.Window, linkItemMaps map[string][]dl.LinkItem, tabData
 	return right
 }
 
-func CreateMaterialOptionsTab(w fyne.Window, linkItemMaps map[string][]dl.LinkItem, name string, isLocal bool, arrayLen int) *fyne.Container {
+func CreateMaterialOptionsTab(w fyne.Window, linkItemMaps map[string][]dl.LinkItem, name string, isLocal bool, saveFetchedData bool, arrayLen int) *fyne.Container {
 	// 左侧多选框
 	var tabData = OptionTabData{
 		InitTabData:     false,
@@ -285,6 +285,6 @@ func CreateMaterialOptionsTab(w fyne.Window, linkItemMaps map[string][]dl.LinkIt
 	bottom := container.NewVBox(widget.NewSeparator(), buttonContainer)
 	left := container.NewBorder(tabData.CheckLabel, bottom, nil, nil, tabData.CheckGroup)
 
-	right := initRightPart(w, linkItemMaps, tabData, name, isLocal, arrayLen)
+	right := initRightPart(w, linkItemMaps, tabData, name, isLocal, saveFetchedData, arrayLen)
 	return container.NewBorder(nil, nil, nil, nil, container.NewHSplit(left, right))
 }
