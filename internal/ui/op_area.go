@@ -73,7 +73,7 @@ func initHeaders(token string) map[string]string {
 	if authInfo != "" {
 		headers["x-nd-auth"] = authInfo
 	}
-	slog.Debug(fmt.Sprintf("headers is %v", headers))
+	slog.Debug("headers initialized", "hasAuth", headers["x-nd-auth"] != "")
 	return headers
 }
 
@@ -201,97 +201,92 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map
 		}, w).Show()
 	})
 
-	downloadButton.OnTapped = func() {
-		isParse := tab.Selected().Text != dl.TAB_NAMES[3]
+	startDownload := func(isVideo bool) {
+		currentTab := tab.Selected().Text
+		isParse := currentTab != dl.TAB_NAMES[3]
 		filteredURLs := extractDownloadLinks(w, tab, linkItemMaps)
 		slog.Info(fmt.Sprintf("filteredURLs count = %d", len(filteredURLs)))
 		slog.Debug(fmt.Sprintf("filteredURLs list = %s", filteredURLs))
-
 		if len(filteredURLs) == 0 {
 			return
 		}
+
 		downloadPath := extractDownloadInfo(w, pathEntry, defaultPath, pathComment)
 		headers := initHeaders(loginEntry.Text)
+		enableLog := logCheckbox.Checked
+		useBackup := backupCheckbox.Checked
 
 		// 下载进行中禁止再次点击
 		downloadButton.Disable()
 		downloadVideoButton.Disable()
 
-		// 遍历获取勾选状态
 		var formatList []string
-		checkboxes := formatContainer.Objects
-		for i, checkbox := range checkboxes {
-			if checkbox.(*widget.Check).Checked {
-				formatList = append(formatList, dl.FORMAT_LIST[i].Suffix)
+		if isVideo {
+			formatList = dl.FORMAT_VIDEO
+			isParse = true
+		} else {
+			// 遍历获取勾选状态
+			checkboxes := formatContainer.Objects
+			for i, checkbox := range checkboxes {
+				if checkbox.(*widget.Check).Checked {
+					formatList = append(formatList, dl.FORMAT_LIST[i].Suffix)
+				}
 			}
-		}
 
-		if len(formatList) == 0 {
-			dialog.NewInformation("警告", "请勾选至少1个资源类型", w).Show()
-			downloadButton.Enable()
-			downloadVideoButton.Enable()
-			return
+			if len(formatList) == 0 {
+				dialog.NewInformation("警告", "请勾选至少1个资源类型", w).Show()
+				downloadButton.Enable()
+				downloadVideoButton.Enable()
+				return
+			}
 		}
 		slog.Info(fmt.Sprintf("formatList count = %d", len(formatList)))
 		slog.Debug(fmt.Sprintf("formatList =\n %v", formatList))
 
-		resourceURLs := dl.ExtractResources(filteredURLs, formatList, random, backupCheckbox.Checked, isParse)
-		resourceStats := make(map[string]int)
-		formatDict := make(map[string]string)
-		for _, item := range dl.FORMAT_LIST {
-			formatDict[item.Suffix] = item.Name
-		}
+		progressLabel.SetText("正在解析资源...")
+		go func() {
+			resourceURLs := dl.ExtractResources(filteredURLs, formatList, random, useBackup, isParse)
+			fyne.Do(func() {
+				if len(resourceURLs) == 0 {
+					dialog.NewError(fmt.Errorf("未解析到有效资源"), w).Show()
+					downloadButton.Enable()
+					downloadVideoButton.Enable()
+					progressLabel.SetText("未解析到有效资源")
+					return
+				}
 
-		// 遍历统计每个文件类型个数
-		for _, item := range resourceURLs {
-			resourceStats[item.Format]++
-		}
-		var resultStrBuilder strings.Builder
-		for key, value := range resourceStats {
-			resultStrBuilder.WriteString(fmt.Sprintf("%s=%d ", formatDict[key], value))
-		}
-		resultStr := resultStrBuilder.String()
-		infoStr := fmt.Sprintf("共解析到%d个资源：%s", len(resourceURLs), resultStr)
-		progressLabel.SetText(infoStr)
-		slog.Info(infoStr)
+				resourceStats := make(map[string]int)
+				formatDict := make(map[string]string)
+				for _, item := range dl.FORMAT_LIST {
+					formatDict[item.Suffix] = item.Name
+				}
+				for _, item := range resourceURLs {
+					resourceStats[item.Format]++
+				}
+				var resultStrBuilder strings.Builder
+				for key, value := range resourceStats {
+					name := formatDict[key]
+					if name == "" {
+						name = key
+					}
+					resultStrBuilder.WriteString(fmt.Sprintf("%s=%d ", name, value))
+				}
+				infoStr := fmt.Sprintf("共解析到%d个资源：%s", len(resourceURLs), resultStrBuilder.String())
+				progressLabel.SetText(infoStr)
+				slog.Info(infoStr)
 
-		if len(resourceURLs) == 0 {
-			dialog.NewError(fmt.Errorf("未解析到有效资源"), w).Show()
-			downloadButton.Enable()
-			downloadVideoButton.Enable()
-			return
-		}
+				downloadManager := dl.NewDownloadManager(w, progressBar, progressLabel, downloadPath, resourceURLs)
+				downloadManager.StartDownload(downloadButton, downloadVideoButton, headers, enableLog, isVideo, maxConcurrency)
+			})
+		}()
+	}
 
-		// 下载任务 更新进度条
-		downloadManager := dl.NewDownloadManager(w, progressBar, progressLabel, downloadPath, resourceURLs)
-		downloadManager.StartDownload(downloadButton, downloadVideoButton, headers, logCheckbox.Checked, false, maxConcurrency)
+	downloadButton.OnTapped = func() {
+		startDownload(false)
 	}
 
 	downloadVideoButton.OnTapped = func() {
-		filteredURLs := extractDownloadLinks(w, tab, linkItemMaps)
-		slog.Info(fmt.Sprintf("filteredURLs count = %d", len(filteredURLs)))
-		if len(filteredURLs) == 0 {
-			return
-		}
-		downloadPath := extractDownloadInfo(w, pathEntry, defaultPath, pathComment)
-		headers := initHeaders(loginEntry.Text)
-
-		// 下载进行中禁止再次点击
-		downloadButton.Disable()
-		downloadVideoButton.Disable()
-
-		formatList := dl.FORMAT_VIDEO
-		resourceURLs := dl.ExtractResources(filteredURLs, formatList, random, backupCheckbox.Checked, true)
-		if len(resourceURLs) == 0 {
-			dialog.NewError(fmt.Errorf("未解析到有效资源"), w).Show()
-			downloadButton.Enable()
-			downloadVideoButton.Enable()
-			return
-		}
-
-		// 下载视频
-		downloadManager := dl.NewDownloadManager(w, progressBar, progressLabel, downloadPath, resourceURLs)
-		downloadManager.StartDownload(downloadButton, downloadVideoButton, headers, logCheckbox.Checked, true, maxConcurrency)
+		startDownload(true)
 	}
 
 	downloadPart := container.NewCenter(

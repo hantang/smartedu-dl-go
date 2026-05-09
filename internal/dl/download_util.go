@@ -35,16 +35,16 @@ func DownloadFile(url, savePath string) error {
 	dest := getFilename(savePath)
 	slog.Info("Save file to " + dest)
 
-	resp, err := http.Get(url)
+	resp, err := defaultHTTPClient.Get(url)
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 	slog.Debug(fmt.Sprintf("Download file status code %v", resp.StatusCode))
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("failed to download file: status code %d", resp.StatusCode)
 	}
 
-	defer resp.Body.Close()
 	out, err := os.Create(dest)
 	if err != nil {
 		return err
@@ -58,7 +58,7 @@ func DownloadFile(url, savePath string) error {
 }
 
 func FetchJsonData(url string) ([]byte, error, bool) {
-	resp, err := http.Get(url)
+	resp, err := defaultHTTPClient.Get(url)
 	if err != nil {
 		slog.Warn(fmt.Sprintf("Error fetching JSON data: %s", err))
 		return nil, err, false

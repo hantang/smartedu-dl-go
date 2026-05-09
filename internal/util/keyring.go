@@ -22,7 +22,7 @@ func GetToken() (string, error) {
 	// 1. 优先环境变量
 	slog.Debug("尝试读取token")
 	if token := os.Getenv(envKey); token != "" {
-		slog.Debug(fmt.Sprintf("读取环境变量 token is %v", token))
+		slog.Debug("已从环境变量读取 token")
 		return token, nil
 	}
 
@@ -32,7 +32,7 @@ func GetToken() (string, error) {
 		slog.Debug("token读取失败")
 		return "", errors.New("未找到token")
 	}
-	slog.Debug(fmt.Sprintf("读取 token is %v", token))
+	slog.Debug("已从系统 Keyring 读取 token")
 	return token, nil
 }
 
@@ -57,6 +57,10 @@ func ExtractToken(authInfo string) string {
 
 func FulfillToken(token string) string {
 	// 拼接 access token 得到完整的 x-nd-auth
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return ""
+	}
 	if !strings.HasPrefix(token, "MAC id") {
 		token = fmt.Sprintf(`MAC id="%s",nonce="0",mac="0"`, token)
 	}

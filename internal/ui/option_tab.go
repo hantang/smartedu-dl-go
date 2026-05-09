@@ -210,33 +210,45 @@ func initRightPart(w fyne.Window, linkItemMaps map[string][]dl.LinkItem, tabData
 	// 查询/重置按钮
 	tabData.QueryButton.OnTapped = func() {
 		tabData.QueryText.Set("加载中...")
+		tabData.QueryButton.Disable()
 		index := 0
-
-		if !tabData.InitTabData {
-			bookBase := dl.FetchRawData2(name, isLocal)
-			if name != dl.TAB_NAMES[1] {
-				if bookBase.Name != "" {
-					bookItemsHistory[index] = bookBase
-					tabData.InitTabData = true
-				}
-			} else {
-				if len(bookBase.Children) > 0 {
-					bookItemsHistory[index] = bookBase.Children[index]
-					tabData.InitTabData = true
-				}
-			}
-		}
 
 		if tabData.InitTabData {
 			tabData.QueryText.Set("💡 请选择" + info)
 			tabData.QueryButton.SetText("重置")
 			tabData.QueryButton.SetIcon(theme.ViewRefreshIcon())
-
+			tabData.QueryButton.Enable()
 			updateComboboxes(w, tabData, name, index, linkItemMaps, bookItemsHistory)
-		} else {
-			tabData.QueryText.Set(info + "加载失败，稍后重试")
-			dialog.ShowError(fmt.Errorf("数据初始化失败"), w)
+			return
 		}
+
+		go func() {
+			bookBase := dl.FetchRawData2(name, isLocal)
+			fyne.Do(func() {
+				if name != dl.TAB_NAMES[1] {
+					if bookBase.Name != "" {
+						bookItemsHistory[index] = bookBase
+						tabData.InitTabData = true
+					}
+				} else {
+					if len(bookBase.Children) > 0 {
+						bookItemsHistory[index] = bookBase.Children[index]
+						tabData.InitTabData = true
+					}
+				}
+
+				if tabData.InitTabData {
+					tabData.QueryText.Set("💡 请选择" + info)
+					tabData.QueryButton.SetText("重置")
+					tabData.QueryButton.SetIcon(theme.ViewRefreshIcon())
+					updateComboboxes(w, tabData, name, index, linkItemMaps, bookItemsHistory)
+				} else {
+					tabData.QueryText.Set(info + "加载失败，稍后重试")
+					dialog.ShowError(fmt.Errorf("数据初始化失败"), w)
+				}
+				tabData.QueryButton.Enable()
+			})
+		}()
 	}
 
 	return right

@@ -40,12 +40,14 @@ func GetResponseBody(url string, headers map[string]string) ([]byte, error) {
 	}
 
 	// 发送请求
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := defaultHTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("请求失败: %v", err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("请求状态异常: %d", resp.StatusCode)
+	}
 
 	// 读取响应体
 	body, err := io.ReadAll(resp.Body)
@@ -63,7 +65,6 @@ func getKeyFromURL(url, key string, headers map[string]string) (string, error) {
 	}
 	var data map[string]string
 	if err := json.Unmarshal(body, &data); err != nil {
-		fmt.Printf("解析JSON失败: %v\n", err)
 		return "", err
 	}
 
@@ -84,7 +85,7 @@ func getDecryptionKey(keyURL, keyID string, headers map[string]string) ([]byte, 
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("nonce = %s\n", nonce)
+	slog.Debug("获取视频解密 nonce 成功")
 
 	sign := encryptMD5(nonce + keyID)[:16]
 	keyIDURL := fmt.Sprintf("%s?nonce=%s&sign=%s", keyURL, nonce, sign)
@@ -92,23 +93,27 @@ func getDecryptionKey(keyURL, keyID string, headers map[string]string) ([]byte, 
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("keyData = %s\n", keyData)
+	slog.Debug("获取视频加密 key 数据成功")
 
 	keyText, err := base64.StdEncoding.DecodeString(keyData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode base64 key: %w", err)
 	}
-	fmt.Printf("keyText = %v\n", keyText)
 
 	decryptionKey, err := decryptAES_ECB(keyText, []byte(sign))
-	fmt.Printf("decryptionKey = %s\n", decryptionKey)
 	return decryptionKey, err
 }
 
 // PKCS7Unpadding 去除PKCS7填充
 func PKCS7Unpadding(data []byte) []byte {
+	if len(data) == 0 {
+		return data
+	}
 	length := len(data)
 	unpadding := int(data[length-1])
+	if unpadding <= 0 || unpadding > length {
+		return data
+	}
 	return data[:(length - unpadding)]
 }
 
@@ -158,14 +163,28 @@ func decryptAES_ECB(ciphertext, key []byte) ([]byte, error) {
 }
 
 func GetM3U8Size(m3u8URL string, headers map[string]string) (int64, error) {
-	resp, err := http.Head(m3u8URL)
+	req, err := http.NewRequest("HEAD", m3u8URL, nil)
+	if err != nil {
+		return 0, fmt.Errorf("创建 M3U8 头信息请求失败: %w", err)
+	}
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+	resp, err := defaultHTTPClient.Do(req)
 	if err != nil {
 		return 0, fmt.Errorf("获取 M3U8 头信息失败: %w", err)
 	}
 	defer resp.Body.Close()
 
 	// 获取 M3U8 播放列表
-	resp, err = http.Get(m3u8URL)
+	req, err = http.NewRequest("GET", m3u8URL, nil)
+	if err != nil {
+		return 0, fmt.Errorf("创建 M3U8 播放列表请求失败: %w", err)
+	}
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+	resp, err = defaultHTTPClient.Do(req)
 	if err != nil {
 		return 0, fmt.Errorf("获取 M3U8 播放列表失败: %w", err)
 	}
@@ -183,16 +202,32 @@ func GetM3U8Size(m3u8URL string, headers map[string]string) (int64, error) {
 
 	var totalSize int64
 	mediaPlaylist := playlist.(*m3u8.MediaPlaylist)
+	baseURL := m3u8URL[:strings.LastIndex(m3u8URL, "/")+1]
 	for _, segment := range mediaPlaylist.Segments {
+		if segment == nil {
+			continue
+		}
+		segmentURL := segment.URI
+		if !strings.HasPrefix(segmentURL, "http") {
+			segmentURL = baseURL + segmentURL
+		}
 		// 获取每个分段的大小
-		segmentResp, err := http.Head(segment.URI)
+		req, err := http.NewRequest("HEAD", segmentURL, nil)
+		if err != nil {
+			slog.Warn(fmt.Sprintf("创建分段大小请求失败: %s", err))
+			continue
+		}
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
+		segmentResp, err := defaultHTTPClient.Do(req)
 		if err != nil {
 			slog.Warn(fmt.Sprintf("获取分段大小失败: %s", err))
 			continue
 		}
-		defer segmentResp.Body.Close()
 
 		sizeStr := segmentResp.Header.Get("Content-Length")
+		segmentResp.Body.Close()
 		if sizeStr != "" {
 			size, err := strconv.ParseInt(sizeStr, 10, 64)
 			if err == nil {
@@ -241,12 +276,14 @@ func downloadTSFile(segmentURL, filename string, headers map[string]string, down
 	}
 
 	// 发送请求
-	client := &http.Client{}
-	segmentResp, err := client.Do(segmentReq)
+	segmentResp, err := defaultHTTPClient.Do(segmentReq)
 	if err != nil {
 		return fmt.Errorf("failed to download segment (%s): %w", segmentURL, err)
 	}
 	defer segmentResp.Body.Close()
+	if segmentResp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to download segment (%s): status code %d", segmentURL, segmentResp.StatusCode)
+	}
 
 	outFile, err := os.Create(filename)
 	if err != nil {
@@ -254,9 +291,9 @@ func downloadTSFile(segmentURL, filename string, headers map[string]string, down
 	}
 	defer outFile.Close()
 
-	_, err = io.Copy(outFile, segmentResp.Body)
-	if segmentResp.ContentLength > 0 {
-		downloadedBytes.Add(int64(segmentResp.ContentLength))
+	n, err := io.Copy(outFile, segmentResp.Body)
+	if n > 0 {
+		downloadedBytes.Add(n)
 	}
 	return err
 }
@@ -283,28 +320,29 @@ func getDecryptedData(tsFile string, key []byte, iv []byte) ([]byte, error) {
 
 }
 
-// 获取 url 在切片中的索引
-func getIndex(urls []string, target string) int {
-	for i, u := range urls {
-		if u == target {
-			return i
-		}
-	}
-	return -1
+type segmentJob struct {
+	index int
+	url   string
 }
 
 // 并发下载 ts 文件并按顺序写入输出文件
 func downloadAllTS(tempDir string, urls []string, headers map[string]string, maxConcurrency int, downloadedBytes *atomic.Int64) error {
 	var wg sync.WaitGroup
-	downloadChan := make(chan string, len(urls))
+	downloadChan := make(chan segmentJob, len(urls))
 	errChan := make(chan error, 1)
+	if maxConcurrency < 1 {
+		maxConcurrency = 1
+	}
+	if maxConcurrency > len(urls) {
+		maxConcurrency = len(urls)
+	}
 
 	// 控制并发数
 	for i := 0; i < maxConcurrency; i++ {
 		go func() {
-			for url := range downloadChan {
-				filename := filepath.Join(tempDir, fmt.Sprintf("%05d.ts", getIndex(urls, url)))
-				err := downloadTSFile(url, filename, headers, downloadedBytes)
+			for job := range downloadChan {
+				filename := filepath.Join(tempDir, fmt.Sprintf("%05d.ts", job.index))
+				err := downloadTSFile(job.url, filename, headers, downloadedBytes)
 				if err != nil {
 					select {
 					case errChan <- err:
@@ -317,9 +355,9 @@ func downloadAllTS(tempDir string, urls []string, headers map[string]string, max
 	}
 
 	// 分发任务
-	for _, url := range urls {
+	for index, url := range urls {
 		wg.Add(1)
-		downloadChan <- url
+		downloadChan <- segmentJob{index: index, url: url}
 	}
 	close(downloadChan)
 
@@ -388,14 +426,16 @@ func DownloadM3U8(m3u8URL, savePath string, headers map[string]string, downloade
 	}
 
 	// 发送 GET 请求
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := defaultHTTPClient.Do(req)
 	if err != nil {
 		return statusCode, fmt.Errorf("获取 M3U8 播放列表失败: %w", err)
 	}
 	slog.Debug(fmt.Sprintf("Fetch Video status code %v", resp.StatusCode))
 	statusCode = resp.StatusCode
 	defer resp.Body.Close()
+	if statusCode != http.StatusOK {
+		return statusCode, fmt.Errorf("获取 M3U8 播放列表状态异常: %d", statusCode)
+	}
 
 	playlist, listType, err := m3u8.DecodeFrom(resp.Body, true)
 	if err != nil {
@@ -414,19 +454,14 @@ func DownloadM3U8(m3u8URL, savePath string, headers map[string]string, downloade
 		return statusCode, err
 	}
 
-	// 允许key为空，不加密
-	key, err := getDecryptionKey(keyURL, keyID, headers)
-	if err != nil {
-		slog.Debug("解密key为空\n")
-	} else {
-		slog.Debug(fmt.Sprintf("解密key: %s\n", key))
+	var key []byte
+	if keyURL != "" {
+		key, err = getDecryptionKey(keyURL, keyID, headers)
+		if err != nil {
+			return statusCode, fmt.Errorf("获取视频解密 key 失败: %w", err)
+		}
+		slog.Debug("获取视频解密 key 成功")
 	}
-
-	saveFile, err := os.Create(savePath)
-	if err != nil {
-		return statusCode, fmt.Errorf("创建文件(%s)失败: %w", savePath, err)
-	}
-	defer saveFile.Close()
 
 	// 并发下载，临时目录保存单个ts片段，之后再合并
 	baseURL := m3u8URL[:strings.LastIndex(m3u8URL, "/")+1]
@@ -448,7 +483,11 @@ func DownloadM3U8(m3u8URL, savePath string, headers map[string]string, downloade
 	}
 	slog.Debug(fmt.Sprintf("tempDir: %s\nmaxConcurrency: %d\nTS count: %d", tempDir, maxConcurrency, len(segmentURLList)))
 
-	downloadAllTS(tempDir, segmentURLList, headers, maxConcurrency, downloadedBytes)
-	mergeTSFiles(tempDir, savePath, segmentURLList, key, iv)
+	if err := downloadAllTS(tempDir, segmentURLList, headers, maxConcurrency, downloadedBytes); err != nil {
+		return statusCode, err
+	}
+	if err := mergeTSFiles(tempDir, savePath, segmentURLList, key, iv); err != nil {
+		return statusCode, err
+	}
 	return statusCode, nil
 }
