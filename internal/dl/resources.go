@@ -12,6 +12,12 @@ var SERVER_LIST = []string{
 	"s-file-3",
 }
 
+const AIEducationListPath = "/AIEducation/list"
+const AIEducationLibraryService = "zxx"
+const AIEducationLibraryAppID = "e5649925-441d-4a53-b525-51a2f1c4e0a8"
+const AIEducationVideoType = "assets_video"
+const AIEducationDefaultPageSize = 12
+
 // 下载数据格式（后缀）
 var FORMAT_LIST = []FormatData{
 	{"文档(PDF)", "pdf", true, true},
@@ -130,6 +136,20 @@ var RESOURCES_MAP = map[string]ResourceData{
 			// https://s-file-1.ykt.cbern.com.cn/zxx/ndrv2/resources/78605dce-97f6-62b7-6cb2-ac41ffd9467b.json
 			basic: "https://%s.ykt.cbern.com.cn/zxx/ndrv2/resources/%s.json",
 		},
+	},
+	"/AIEducation/detail": {
+		name:     "人工智能教育>视频资源",
+		params:   []string{"contentId"},
+		examples: []string{},
+		resources: ResourceInfo{
+			basic: "https://%s.ykt.cbern.com.cn/zxx/ndrs/special_edu/resources/details/%s.json",
+		},
+	},
+	AIEducationListPath: {
+		name:      "AIEducation list",
+		params:    []string{"content_id"},
+		examples:  []string{},
+		resources: ResourceInfo{},
 	},
 	// "/syncClassroom/examinationpapers": {
 	// 	name:     "课程教学>教师授课备课>习题资源", // 数据是json 忽略
@@ -385,6 +405,16 @@ type ReadingItem struct {
 	ResourceType string       `json:"resource_type"`
 	Title        string       `json:"title"`
 	Description  string       `json:"description"`
+	Tags         []ReadingTag `json:"tags"`
+}
+
+type LibraryContentItem struct {
+	ID           string       `json:"id"`
+	UnitID       string       `json:"unit_id"`
+	Type         string       `json:"type"`
+	ResourceType string       `json:"resource_type"`
+	Title        string       `json:"title"`
+	ContentTypes []string     `json:"content_types"`
 	Tags         []ReadingTag `json:"tags"`
 }
 

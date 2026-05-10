@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"path"
 	"strings"
@@ -122,6 +123,120 @@ func extractDownloadLinks(w fyne.Window, tab *container.AppTabs, linkItemMaps ma
 		return filteredURLs
 	}
 	return filteredURLs
+}
+
+func expandAIEducationListForVideoSelection(links []string) ([]string, bool) {
+	expanded := make([]string, 0, len(links))
+	hasListPage := false
+	for _, link := range links {
+		parsedURL, err := url.Parse(link)
+		if err == nil && parsedURL.Path == dl.AIEducationListPath {
+			hasListPage = true
+			query := parsedURL.Query()
+			if query.Get("all") == "" && query.Get("downloadAll") == "" {
+				query.Set("all", "1")
+				parsedURL.RawQuery = query.Encode()
+				link = parsedURL.String()
+			}
+		}
+		expanded = append(expanded, link)
+	}
+	return expanded, hasListPage
+}
+
+func formatVideoSize(size int64) string {
+	if size <= 0 {
+		return ""
+	}
+	const mb = 1024 * 1024
+	if size < mb {
+		return fmt.Sprintf("%.1f KB", float64(size)/1024)
+	}
+	return fmt.Sprintf("%.1f MB", float64(size)/mb)
+}
+
+func showVideoSelectionDialog(w fyne.Window, resources []dl.LinkData, pageSize int, startDownload func([]dl.LinkData), onCancel func()) {
+	selected := make([]bool, len(resources))
+	checks := make([]*widget.Check, len(resources))
+	checkContainer := container.NewVBox()
+	countLabel := widget.NewLabel("")
+
+	updateCount := func() {
+		count := 0
+		for _, checked := range selected {
+			if checked {
+				count++
+			}
+		}
+		countLabel.SetText(fmt.Sprintf("已选择 %d/%d 个视频", count, len(resources)))
+	}
+
+	for i, resource := range resources {
+		index := i
+		selected[index] = true
+		prefix := fmt.Sprintf("%03d.", i+1)
+		if pageSize > 0 {
+			prefix = fmt.Sprintf("第%d页 %03d.", i/pageSize+1, i+1)
+		}
+		label := fmt.Sprintf("%s %s", prefix, resource.Title)
+		if sizeText := formatVideoSize(resource.Size); sizeText != "" {
+			label = fmt.Sprintf("%s (%s)", label, sizeText)
+		}
+		check := widget.NewCheck(label, func(checked bool) {
+			selected[index] = checked
+			updateCount()
+		})
+		check.SetChecked(true)
+		checks[index] = check
+		checkContainer.Add(check)
+	}
+
+	selectAllButton := widget.NewButtonWithIcon("全选", theme.ConfirmIcon(), func() {
+		for i, check := range checks {
+			selected[i] = true
+			check.SetChecked(true)
+		}
+		updateCount()
+	})
+	clearAllButton := widget.NewButtonWithIcon("全不选", theme.CancelIcon(), func() {
+		for i, check := range checks {
+			selected[i] = false
+			check.SetChecked(false)
+		}
+		updateCount()
+	})
+
+	scroll := container.NewVScroll(checkContainer)
+	scroll.SetMinSize(fyne.NewSize(720, 420))
+	contentItems := []fyne.CanvasObject{
+		widget.NewLabel(fmt.Sprintf("解析到 %d 个视频，请勾选要下载的内容。", len(resources))),
+	}
+	if pageSize > 0 && len(resources) > pageSize {
+		contentItems = append(contentItems, widget.NewLabel(fmt.Sprintf("网页每页通常是 %d 个视频；第 2 页一般对应 %03d-%03d。", pageSize, pageSize+1, pageSize*2)))
+	}
+	contentItems = append(contentItems, container.NewHBox(selectAllButton, clearAllButton, countLabel), scroll)
+	content := container.NewVBox(contentItems...)
+	updateCount()
+
+	dialog.NewCustomConfirm("选择要下载的视频", "开始下载", "取消", content, func(ok bool) {
+		if !ok {
+			onCancel()
+			return
+		}
+
+		selectedResources := make([]dl.LinkData, 0, len(resources))
+		for i, checked := range selected {
+			if checked {
+				selectedResources = append(selectedResources, resources[i])
+			}
+		}
+		if len(selectedResources) == 0 {
+			dialog.NewInformation("提示", "请至少选择 1 个视频", w).Show()
+			onCancel()
+			return
+		}
+		startDownload(selectedResources)
+	}, w).Show()
 }
 
 func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map[string][]dl.LinkItem, maxConcurrency int) *fyne.Container {
@@ -275,23 +390,50 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map
 		}
 		downloadPath := extractDownloadInfo(w, pathEntry, defaultPath, pathComment)
 		headers := initHeaders(loginEntry.Text)
+		useBackup := backupCheckbox.Checked
+		enableLog := logCheckbox.Checked
 
 		// 下载进行中禁止再次点击
 		downloadButton.Disable()
 		downloadVideoButton.Disable()
+		progressLabel.SetText("正在解析视频资源...")
 
-		formatList := dl.FORMAT_VIDEO
-		resourceURLs := dl.ExtractResources(filteredURLs, formatList, random, backupCheckbox.Checked, true)
-		if len(resourceURLs) == 0 {
-			dialog.NewError(fmt.Errorf("未解析到有效资源"), w).Show()
-			downloadButton.Enable()
-			downloadVideoButton.Enable()
-			return
+		videoLinks, hasAIEducationListPage := expandAIEducationListForVideoSelection(filteredURLs)
+		selectionPageSize := 0
+		if hasAIEducationListPage {
+			selectionPageSize = dl.AIEducationDefaultPageSize
 		}
+		go func() {
+			formatList := dl.FORMAT_VIDEO
+			resourceURLs := dl.ExtractResources(videoLinks, formatList, random, useBackup, true)
+			fyne.Do(func() {
+				if len(resourceURLs) == 0 {
+					dialog.NewError(fmt.Errorf("未解析到有效资源"), w).Show()
+					downloadButton.Enable()
+					downloadVideoButton.Enable()
+					progressLabel.SetText("当前无下载内容")
+					return
+				}
 
-		// 下载视频
-		downloadManager := dl.NewDownloadManager(w, progressBar, progressLabel, downloadPath, resourceURLs)
-		downloadManager.StartDownload(downloadButton, downloadVideoButton, headers, logCheckbox.Checked, true, maxConcurrency)
+				startDownload := func(selectedResources []dl.LinkData) {
+					downloadManager := dl.NewDownloadManager(w, progressBar, progressLabel, downloadPath, selectedResources)
+					downloadManager.StartDownload(downloadButton, downloadVideoButton, headers, enableLog, true, maxConcurrency)
+				}
+				cancelDownload := func() {
+					downloadButton.Enable()
+					downloadVideoButton.Enable()
+					progressLabel.SetText("已取消视频下载")
+				}
+
+				if len(resourceURLs) == 1 {
+					startDownload(resourceURLs)
+					return
+				}
+
+				progressLabel.SetText(fmt.Sprintf("解析到 %d 个视频，请选择要下载的内容", len(resourceURLs)))
+				showVideoSelectionDialog(w, resourceURLs, selectionPageSize, startDownload, cancelDownload)
+			})
+		}()
 	}
 
 	downloadPart := container.NewCenter(

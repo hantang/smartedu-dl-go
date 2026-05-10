@@ -1,6 +1,8 @@
 package dl
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -51,6 +53,10 @@ func parseURL(link string, audio bool, random bool, useBackup bool) ([]string, e
 		return configURLList, nil
 	}
 
+	if path == AIEducationListPath {
+		return parseAIEducationListURL(parsedURL, random)
+	}
+
 	configInfo, ok := RESOURCES_MAP[path]
 	if !ok {
 		return configURLList, fmt.Errorf("invalid url path: %s", path)
@@ -89,6 +95,281 @@ func parseURL(link string, audio bool, random bool, useBackup bool) ([]string, e
 		slog.Debug(fmt.Sprintf("audioURL = %s", audioURL))
 		configURLList = append(configURLList, audioURL)
 	}
+	return configURLList, nil
+}
+
+func pickServer(random bool) string {
+	if random {
+		return SERVER_LIST[rand.Intn(len(SERVER_LIST))]
+	}
+	return SERVER_LIST[0]
+}
+
+func sha256Hex(raw string) string {
+	sum := sha256.Sum256([]byte(raw))
+	return hex.EncodeToString(sum[:])
+}
+
+func buildLibraryAdapterIndexURL(server string, libraryID string) string {
+	adapterPath := fmt.Sprintf("/v1/libraries/%s/contents/actions/full/adapter", libraryID)
+	hash := sha256Hex(adapterPath + "?sort_type=3")
+	return fmt.Sprintf(
+		"https://%s.ykt.cbern.com.cn/%s/api/zh-CN/%s/elearning_library%s/%s.json",
+		server,
+		AIEducationLibraryService,
+		AIEducationLibraryAppID,
+		adapterPath,
+		hash,
+	)
+}
+
+func fetchAIEducationListItems(indexURL string) ([]LibraryContentItem, error) {
+	data, err, statusOK := FetchJsonData(indexURL)
+	if err != nil || !statusOK {
+		return nil, fmt.Errorf("fetch ai education list index error: %v / status=%v", err, statusOK)
+	}
+
+	var library DataLibrary
+	if err := json.Unmarshal(data, &library); err != nil {
+		var items []LibraryContentItem
+		if itemErr := json.Unmarshal(data, &items); itemErr != nil {
+			return nil, err
+		}
+		return items, nil
+	}
+
+	parsedURL, err := url.Parse(indexURL)
+	if err != nil {
+		return nil, err
+	}
+	baseURL := parsedURL.Scheme + "://" + parsedURL.Host
+	var items []LibraryContentItem
+	for _, file := range library.Files {
+		fileURL := file
+		if strings.HasPrefix(file, "/") {
+			fileURL = baseURL + file
+		} else if !strings.HasPrefix(file, "http") {
+			fileURL = baseURL + "/" + file
+		}
+
+		partData, err, statusOK := FetchJsonData(fileURL)
+		if err != nil || !statusOK {
+			slog.Warn(fmt.Sprintf("fetch ai education list file error: %v / status=%v", err, statusOK))
+			continue
+		}
+		var partItems []LibraryContentItem
+		if err := json.Unmarshal(partData, &partItems); err != nil {
+			slog.Warn(fmt.Sprintf("parse ai education list file error: %v", err))
+			continue
+		}
+		items = append(items, partItems...)
+	}
+	return items, nil
+}
+
+func splitDefaultTags(raw string) []string {
+	raw = unescapeQueryValue(raw)
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+
+	parts := strings.Split(raw, "/")
+	tags := []string{}
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" || strings.EqualFold(part, "all") {
+			continue
+		}
+		tags = append(tags, part)
+	}
+	return tags
+}
+
+func unescapeQueryValue(raw string) string {
+	for range 2 {
+		decoded, err := url.QueryUnescape(raw)
+		if err != nil || decoded == raw {
+			break
+		}
+		raw = decoded
+	}
+	return raw
+}
+
+func parseEmbeddedListQuery(raw string) url.Values {
+	values := url.Values{}
+	if raw == "" {
+		return values
+	}
+
+	parsed, err := url.ParseQuery(raw)
+	if err == nil {
+		return parsed
+	}
+
+	for _, part := range strings.Split(raw, "&") {
+		key, value, ok := strings.Cut(part, "=")
+		if !ok {
+			continue
+		}
+		values.Add(strings.TrimSpace(key), strings.TrimSpace(value))
+	}
+	return values
+}
+
+func parseAIEducationListParams(values url.Values) (string, []string, error) {
+	contentID := unescapeQueryValue(strings.TrimSpace(values.Get("content_id")))
+	if contentID == "" {
+		return "", nil, fmt.Errorf("missing content_id")
+	}
+
+	defaultTagCandidates := []string{values.Get("defaultTag")}
+	libraryID := contentID
+	if cleanID, embeddedQuery, found := strings.Cut(contentID, "?"); found {
+		libraryID = cleanID
+		embeddedValues := parseEmbeddedListQuery(embeddedQuery)
+		defaultTagCandidates = append(defaultTagCandidates, embeddedValues.Get("defaultTag"))
+	} else if cleanID, embeddedQuery, found := strings.Cut(contentID, "&"); found {
+		libraryID = cleanID
+		embeddedValues := parseEmbeddedListQuery(embeddedQuery)
+		defaultTagCandidates = append(defaultTagCandidates, embeddedValues.Get("defaultTag"))
+	}
+
+	libraryID = strings.Trim(strings.TrimSpace(libraryID), "/")
+	if libraryID == "" {
+		return "", nil, fmt.Errorf("missing content_id")
+	}
+
+	var selectedTags []string
+	for _, candidate := range defaultTagCandidates {
+		tags := splitDefaultTags(candidate)
+		if len(tags) > len(selectedTags) {
+			selectedTags = tags
+		}
+	}
+	return libraryID, selectedTags, nil
+}
+
+func containsTag(item LibraryContentItem, tag string) bool {
+	if tag == "" {
+		return true
+	}
+	for _, itemTag := range item.Tags {
+		if itemTag.ID == tag || itemTag.Code == tag || itemTag.Title == tag {
+			return true
+		}
+	}
+	return false
+}
+
+func filterAIEducationVideoItems(items []LibraryContentItem, selectedTags []string) ([]LibraryContentItem, string) {
+	allVideos := []LibraryContentItem{}
+	for _, item := range items {
+		if isVideoLibraryContent(item) {
+			allVideos = append(allVideos, item)
+		}
+	}
+	if len(selectedTags) == 0 {
+		return allVideos, ""
+	}
+
+	for i := len(selectedTags) - 1; i >= 0; i-- {
+		tag := selectedTags[i]
+		videoItems := []LibraryContentItem{}
+		for _, item := range allVideos {
+			if containsTag(item, tag) {
+				videoItems = append(videoItems, item)
+			}
+		}
+		if len(videoItems) > 0 {
+			return videoItems, tag
+		}
+	}
+	return []LibraryContentItem{}, selectedTags[len(selectedTags)-1]
+}
+
+func isVideoLibraryContent(item LibraryContentItem) bool {
+	if item.ResourceType == AIEducationVideoType {
+		return true
+	}
+	if item.Type == AIEducationVideoType {
+		return true
+	}
+	for _, contentType := range item.ContentTypes {
+		if contentType == AIEducationVideoType {
+			return true
+		}
+	}
+	return false
+}
+
+func parsePositiveInt(values url.Values, keys []string, defaultValue int) int {
+	for _, key := range keys {
+		value, err := strconv.Atoi(values.Get(key))
+		if err == nil && value > 0 {
+			return value
+		}
+	}
+	return defaultValue
+}
+
+func isTruthy(raw string) bool {
+	raw = strings.TrimSpace(strings.ToLower(raw))
+	return raw == "1" || raw == "true" || raw == "yes" || raw == "all"
+}
+
+func sliceListPage(items []LibraryContentItem, values url.Values) []LibraryContentItem {
+	if isTruthy(values.Get("all")) || isTruthy(values.Get("downloadAll")) {
+		return items
+	}
+
+	pageSize := parsePositiveInt(values, []string{"pageSize", "page_size", "size", "limit"}, AIEducationDefaultPageSize)
+	page := parsePositiveInt(values, []string{"page", "pageNum", "pageNo"}, 1)
+	start := (page - 1) * pageSize
+	if start >= len(items) {
+		return []LibraryContentItem{}
+	}
+	end := start + pageSize
+	if end > len(items) {
+		end = len(items)
+	}
+	return items[start:end]
+}
+
+func parseAIEducationListURL(parsedURL *url.URL, random bool) ([]string, error) {
+	queryParams := parsedURL.Query()
+	libraryID, selectedTags, err := parseAIEducationListParams(queryParams)
+	if err != nil {
+		return nil, err
+	}
+
+	server := pickServer(random)
+	indexURL := buildLibraryAdapterIndexURL(server, libraryID)
+	items, err := fetchAIEducationListItems(indexURL)
+	if err != nil {
+		return nil, err
+	}
+
+	videoItems, selectedTag := filterAIEducationVideoItems(items, selectedTags)
+	if selectedTag != "" {
+		slog.Info(fmt.Sprintf("AIEducation list selected tag %s", selectedTag))
+	}
+	videoItems = sliceListPage(videoItems, queryParams)
+
+	configInfo := RESOURCES_MAP["/AIEducation/detail"]
+	configURLList := []string{}
+	for _, item := range videoItems {
+		contentID := item.UnitID
+		if contentID == "" {
+			contentID = item.ID
+		}
+		if contentID == "" {
+			continue
+		}
+		configURLList = append(configURLList, fmt.Sprintf(configInfo.resources.basic, server, contentID))
+	}
+	slog.Info(fmt.Sprintf("AIEducation list expanded to %d video resources", len(configURLList)))
 	return configURLList, nil
 }
 
