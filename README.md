@@ -4,7 +4,17 @@
 ![CI](https://github.com/hantang/smartedu-dl-go/actions/workflows/ci.yml/badge.svg)
 ![Tag](https://img.shields.io/github/v/tag/hantang/smartedu-dl-go)
 
-> 智慧教育平台资源下载工具（`go`实现版，基于 fyne 框架 GUI 版本）
+> [!NOTE]
+> 智慧教育平台资源下载工具（`go`实现版，基于 **fyne** 框架 GUI 版本）。
+>
+> 主要页面：教材页面（课本PDF、音频）、课程教学页面（课件、教学视频等）、中小学语文示范诵读库（语文课文音频，可直接下载）等。
+
+> [!TIP]
+> 新增js脚本，可在浏览器 **Tampermonkey** 等插件中使用（仅支持教材课本页面下载课本PDF，仍需要登录）。
+>
+> - 脚本安装链接 [greasyfork.org | SmartEdu 教材下载（PDF课本）](https://greasyfork.org/zh-CN/scripts/578069-smartedu-教材下载-pdf课本)
+> - 源代码 [gist.github.com | smartedu-dl.user.js](https://gist.github.com/hantang/81e8715dfc1d20760c4c268ee63d5a1b)
+
 
 ## 📝 功能说明
 
@@ -19,10 +29,12 @@
 |         | 课程包 | ![](images/mac-dark3c.png) | ![](images/mac-light3c.png) |
 | macos   | 输入链接 | ![](images/mac-dark2a.png) | ![](images/mac-light2a.png) |
 |         | 教材列表 | ![](images/mac-dark2b.png) | ![](images/mac-light2b.png) |
-|         |          |                            |
+|         |          |                            |                            |
 | windows |          | ![](images/win-dark.png)   | ![](images/win-light.png)   |
-|         |          |                            |
+|         |          |                            |                            |
 | linux   |          | ![](images/linux-dark.png) | ![](images/linux-light.png) |
+|         |          |                            |                            |
+| 浏览器脚本  | （仅教材）   |                     | ![](images/js.png) |
 
 ### ⚡️ 更新
 
@@ -72,10 +84,10 @@
 
 ### Mac ARM芯片（M1等）
 
-单独配置（推荐）
+单独配置（**推荐**）
 
 ```shell
-sudo xattr -rd com.apple.quarantine /Applications/应用名.app
+xattr -rd com.apple.quarantine /Applications/应用名.app
 ```
 
 或者，开启任何来源（Anywhere）：
