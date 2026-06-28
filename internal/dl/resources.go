@@ -147,6 +147,8 @@ var RESOURCES_MAP = map[string]ResourceData{
 			basic: "https://%s.ykt.cbern.com.cn/zxx/ndrv2/knowledge_micro_lesson_package/resources/details/%s.json",
 		},
 	},
+
+	// TODO 解析方式不同
 	"/syncClassroom/examinationpapers": {
 		// "resource_type_code_name": "试卷",
 		name:   "课程教学>教师授课备课>习题资源, 学生自主学习>练习", // 学生自主学习 fromPrepare=0
@@ -163,6 +165,35 @@ var RESOURCES_MAP = map[string]ResourceData{
 			// step3:
 			// PDF：题目、题目和答案 download_url_new, download_url_with_answer_new
 			// "https://bdcs-file-2.ykt.cbern.com.cn/xedu_cs_paper_bank/api_static/papers/${question_path_list[0]}/question_files/0.json"
+		},
+	},
+
+	// 更多（初步支持）
+	"/AIEducation/detail": {
+		name:   "人工智能教育",
+		params: []string{"contentId"},
+		examples: []string{
+			"https://basic.smartedu.cn/AIEducation/detail?contentType=thematic_course&contentId=07b7a332-5970-ad47-e699-6c376e2c630f&catalogType=AIEducation&subCatalog=learnAi",
+			"https://basic.smartedu.cn/AIEducation/detail?contentType=assets_video&contentId=c2c46b98-6079-35fc-1232-059c6277c519&catalogType=AIEducation&subCatalog=learnAi",
+		},
+		resources: ResourceInfo{
+			// TODO 如何区分contentType类型
+			// 限制 contentType=thematic_course
+			basic: "https://%s.ykt.cbern.com.cn/zxx/ndrs/special_edu/thematic_course/%s/resources/list.json",
+			backup: []string{
+				// 限制 contentType=assets_video
+				"https://%s.ykt.cbern.com.cn/zxx/ndrs/special_edu/resources/details/%s.json",
+			},
+		},
+	},
+	"/technologyEdu/detail": {
+		name:   "科技教育", // 视频
+		params: []string{"contentId"},
+		examples: []string{
+			"https://basic.smartedu.cn/technologyEdu/detail?contentType=assets_video&contentId=a952380a-81c8-ba51-d644-3c662587abd3&catalogType=technologyEdu&subCatalog=Learnkj",
+		},
+		resources: ResourceInfo{
+			basic: "https://%s.ykt.cbern.com.cn/zxx/ndrs/special_edu/resources/details/%s.json",
 		},
 	},
 }

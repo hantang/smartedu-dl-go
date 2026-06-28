@@ -19,7 +19,7 @@ func CreateInputTab(w fyne.Window, linkItemMaps map[string][]dl.LinkItem, name s
 
 	// Update the input to linkItemMaps[name]
 	urlInput.OnChanged = func(text string) {
-		lines := strings.Split(text, "\n")
+		lines := strings.Split(text, "\n") // TODO 限制行数（批量下载数量）
 		linkItemMaps[name] = []dl.LinkItem{} // 清空现有数据
 		for _, line := range lines {
 			line = strings.TrimSpace(line)

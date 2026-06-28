@@ -65,6 +65,7 @@ func parseURL(link string, audio bool, random bool, useBackup bool) ([]string, e
 	for _, key := range paramList {
 		paramDict[key] = queryParams.Get(key)
 	}
+	// TODO
 	if path == "/tchMaterial/detail" && paramDict[contentTypeKey] != "assets_document" {
 		slog.Warn(fmt.Sprintf("Error %s = %s. Ignore", contentTypeKey, paramDict[contentTypeKey]))
 		return configURLList, fmt.Errorf("invalid %s: %s", contentTypeKey, paramDict[contentTypeKey])
