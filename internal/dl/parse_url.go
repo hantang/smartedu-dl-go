@@ -6,7 +6,9 @@ import (
 	"log/slog"
 	"math/rand"
 	"net/url"
+	"path"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"slices"
 	"strconv"
@@ -161,12 +163,49 @@ func concatFullTitle(title string, bookName string, schoolName string, teacherNa
 	return baseTitle
 }
 
+func getFirstItemResource[T any](relations any) (items []T) {
+	// itemExt.Relations 中获得候选
+	v := reflect.ValueOf(relations)
+	if v.Kind() == reflect.Pointer {
+		v = v.Elem()
+	}
+
+	t := v.Type()
+
+	for i := 0; i < v.NumField(); i++ {
+		field := v.Field(i)
+		fieldType := t.Field(i)
+
+		if field.Kind() != reflect.Slice {
+			continue
+		}
+
+		slog.Debug("Relations",
+			"name", fieldType.Name,
+			"json", fieldType.Tag.Get("json"),
+			"len", field.Len(),
+		)
+
+		if field.Len() == 0 {
+			continue
+		}
+
+		items, ok := field.Interface().([]T)
+		if !ok {
+			continue
+		}
+		return items
+	}
+
+	return nil
+}
+
 func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]LinkData, error) {
 	// 解析资源文件（json格式），得到最终下来文件的链接
 	var result []LinkData
 	var items []ResourceItem
 
-	// 尝试解析为ResourceItemExt (课程类)
+	// 尝试解析为ResourceItemExt (课程包)
 	var itemExt ResourceItemExt
 	teacherNames := ""
 	schoolName := ""
@@ -179,15 +218,9 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 		bookName = itemExt.CustomProperties.BookInfo.Name
 
 		slog.Debug("Parse into ResourceItemExt")
-		tempItems := [][]ResourceItem{
-			itemExt.Relations.NationalCourseResource,
-			itemExt.Relations.EliteCourseResource,
-		}
-		for _, temp := range tempItems {
-			if len(temp) > 0 {
-				items = temp
-				break
-			}
+		tempItems := getFirstItemResource[ResourceItem](itemExt.Relations)
+		if tempItems != nil {
+			items = tempItems
 		}
 	}
 
@@ -203,6 +236,11 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 			}
 			items = []ResourceItem{item}
 		}
+	}
+
+	slog.Debug(fmt.Sprintf("Extract items = %d", len(items)))
+	if len(items) == 0 {
+		return nil, fmt.Errorf("empty resource items")
 	}
 
 	// 处理每个ResourceItem
@@ -278,6 +316,57 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 		}
 	}
 
+	slog.Debug(fmt.Sprintf("Extract result items = %d", len(result)))
+	return result, nil
+}
+
+func parsePaperResourceItems(data []byte) ([]LinkData, error) {
+	// 练习（试卷） 或者 container_id 字段，请求data.json获得pdf
+	var result []LinkData
+	var resourceItem ResourceItem
+	if err := json.Unmarshal(data, &resourceItem); err != nil {
+		return nil, err
+	}
+
+	resourceType := resourceItem.ResourceType // "试卷"
+	dataURL := fmt.Sprintf("%s/xedu_cs_paper_bank/api_static/papers/%s_%s/data.json", PAPER_SERVER, resourceItem.ContainerID, resourceItem.ID)
+	slog.Debug(fmt.Sprintf("resourceType = %s, dataURL = %v", resourceType, dataURL))
+	dataResult, err, statusOK := FetchJsonData(dataURL)
+	if err != nil || !statusOK {
+		slog.Warn(fmt.Sprintf("fetch data error: %v / status=%v", err, statusOK))
+		return nil, err
+	}
+
+	var paperItem PaperItem
+	if err := json.Unmarshal(dataResult, &paperItem); err != nil {
+		return nil, err
+	}
+
+	pdfLinks := []string{paperItem.PDF_MAIN_LINK, paperItem.PDF_FULL_LINK}
+	for _, urlPath := range pdfLinks {
+		slog.Info(fmt.Sprintf("pdfLink = %s", urlPath))
+		if strings.HasPrefix(urlPath, "/") {
+			downloadURL := PAPER_SERVER + urlPath
+			filename := path.Base(urlPath)
+			name := strings.TrimSuffix(filename, path.Ext(filename))
+			if name == "" {
+				name = paperItem.Title
+			}
+			if resourceType != "" {
+				name = resourceType + "-" + name
+			}
+			slog.Debug(fmt.Sprintf("name = %s, downloadURL = %s", name, downloadURL))
+			result = append(result, LinkData{
+				Format:    "pdf",
+				Title:     name,
+				ID:        paperItem.ID,
+				RawURL:    downloadURL,
+				BackupURL: downloadURL,
+				Size:      -1,
+			})
+		}
+	}
+	slog.Debug(fmt.Sprintf("Extract result items = %d", len(result)))
 	return result, nil
 }
 
@@ -406,12 +495,26 @@ func ExtractResources(links []string, formatList []string, random bool, useBacku
 			slog.Warn(fmt.Sprintf("fetch data error: %v / status=%v", err, statusOK))
 			continue
 		}
-		resources, err := parseResourceItems(data, formatList, random)
-		if err != nil {
-			slog.Warn(fmt.Sprintf("parse resource data error: %v", err))
-			continue
+
+		if strings.Contains(url, "/examinationpapers") {
+			slog.Debug(fmt.Sprintf("formatList = %v", formatList))
+			if slices.Contains(formatList, "pdf") {
+				resources, err := parsePaperResourceItems(data)
+				if err != nil {
+					slog.Warn(fmt.Sprintf("parse paper resource error: %v", err))
+					continue
+				}
+
+				result = append(result, resources...)
+			}
+		} else {
+			resources, err := parseResourceItems(data, formatList, random)
+			if err != nil {
+				slog.Warn(fmt.Sprintf("parse resource data error: %v", err))
+				continue
+			}
+			result = append(result, resources...)
 		}
-		result = append(result, resources...)
 	}
 
 	// 去重

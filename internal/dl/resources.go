@@ -12,6 +12,9 @@ var SERVER_LIST = []string{
 	"s-file-3",
 }
 
+// or: bdcs-file-1
+var PAPER_SERVER = "https://bdcs-file-2.ykt.cbern.com.cn"
+
 // 下载数据格式（后缀）
 var FORMAT_LIST = []FormatData{
 	{"文档(PDF)", "pdf", true, true},
@@ -131,18 +134,37 @@ var RESOURCES_MAP = map[string]ResourceData{
 			basic: "https://%s.ykt.cbern.com.cn/zxx/ndrv2/resources/%s.json",
 		},
 	},
-	// "/syncClassroom/examinationpapers": {
-	// 	name:     "课程教学>教师授课备课>习题资源", // 数据是json 忽略
-	// 	params:   []string{"resourceId"},
-	// 	examples: []string{
-	// 		"https://basic.smartedu.cn/syncClassroom/examinationpapers?resourceId=95af8600-c178-488e-98ce-918106d4fdba&chapterId=538ac938-a87d-37e9-9a3c-a2fb8322329e&teachingmaterialId=d92ca54e-2cdc-4921-95f3-769eafd0c814&fromPrepare=1",
-	// 	},
-	// 	resources: ResourceInfo{
-	// 		basic: "https://%s.ykt.cbern.com.cn/zxx/ndrs/examinationpapers/resources/details/%s.json", // -> create_container_id
-	// step2: "https://bdcs-file-2.ykt.cbern.com.cn/xedu_cs_paper_bank/api_static/papers/${create_container_id}/data.json" // -> question_path_list
-	// step3: "https://bdcs-file-2.ykt.cbern.com.cn/xedu_cs_paper_bank/api_static/papers/${question_path_list[0]}/question_files/0.json"
-	// 	},
-	// },
+	"/syncClassroom/detail": {
+		name:   "课程教学>教师授课备课>知识点微课, 学生自主学习>知识点微课", // 学生自主学习 fromPrepare=0 （类似课程包，仅视频+课件）
+		params: []string{"resourceId"},
+		examples: []string{
+			"https://basic.smartedu.cn/syncClassroom/detail?resourceId=f31ff464-4f6a-46b9-810f-77a247dff523&resourceType=knowledge_micro_lesson_package&chapterId=538ac938-a87d-37e9-9a3c-a2fb8322329e&teachingmaterialId=d92ca54e-2cdc-4921-95f3-769eafd0c814&fromPrepare=1&classHourId=lesson_1",
+			//来自页面 https://basic.smartedu.cn/syncClassroom/prepare?defaultTag=e7bbce2c-0590-11ed-9c79-92fc3b3249d5%2Fe7bbcf80-0590-11ed-9c79-92fc3b3249d5%2Fff8080814371757b01437c363a187b0a%2F44bec67a-54e6-11ed-9c34-850ba61fa9f4%2Fff8080814371757b014390f883db0453%2F5136342960
+			"https://basic.smartedu.cn/syncClassroom/detail?resourceId=6ecee067-81c9-4e3b-b5dc-102fb6516267&resourceType=knowledge_micro_lesson_package&chapterId=ad4a5b55-565f-3606-b390-aa59419ca5e1&teachingmaterialId=e5053b45-7755-4017-8c2b-e7d35d307958&fromPrepare=0",
+			// 来自页面  https://basic.smartedu.cn/syncClassroom?defaultTag=e7bbce2c-0590-11ed-9c79-92fc3b3249d5%2F44bec0c6-54e6-11ed-9c34-850ba61fa9f4%2Fe7bbcfee-0590-11ed-9c79-92fc3b3249d5%2Fff8080814371757b01437c363a187b0a%2F8ae7e58b77b3bac901783dd80dee0c44%2F5136342960
+		},
+		resources: ResourceInfo{
+			basic: "https://%s.ykt.cbern.com.cn/zxx/ndrv2/knowledge_micro_lesson_package/resources/details/%s.json",
+		},
+	},
+	"/syncClassroom/examinationpapers": {
+		// "resource_type_code_name": "试卷",
+		name:   "课程教学>教师授课备课>习题资源, 学生自主学习>练习", // 学生自主学习 fromPrepare=0
+		params: []string{"resourceId"},
+		examples: []string{
+			"https://basic.smartedu.cn/syncClassroom/examinationpapers?resourceId=95af8600-c178-488e-98ce-918106d4fdba&chapterId=538ac938-a87d-37e9-9a3c-a2fb8322329e&teachingmaterialId=d92ca54e-2cdc-4921-95f3-769eafd0c814&fromPrepare=1",
+			"https://basic.smartedu.cn/syncClassroom/examinationpapers?resourceId=4106f491-d07e-4109-a22a-bfe719914104&chapterId=ad4a5b55-565f-3606-b390-aa59419ca5e1&teachingmaterialId=e5053b45-7755-4017-8c2b-e7d35d307958&fromPrepare=0",
+			// 来自页面 https://basic.smartedu.cn/syncClassroom?defaultTag=e7bbce2c-0590-11ed-9c79-92fc3b3249d5%2F44bec0c6-54e6-11ed-9c34-850ba61fa9f4%2Fe7bbcfee-0590-11ed-9c79-92fc3b3249d5%2Fff8080814371757b01437c363a187b0a%2F8ae7e58b77b3bac901783dd80dee0c44%2F5136342960
+		},
+		resources: ResourceInfo{
+			// JSON数据
+			basic: "https://%s.ykt.cbern.com.cn/zxx/ndrs/examinationpapers/resources/details/%s.json", // -> create_container_id
+			// step2: "https://bdcs-file-2.ykt.cbern.com.cn/xedu_cs_paper_bank/api_static/papers/${create_container_id}/data.json" // -> question_path_list
+			// step3:
+			// PDF：题目、题目和答案 download_url_new, download_url_with_answer_new
+			// "https://bdcs-file-2.ykt.cbern.com.cn/xedu_cs_paper_bank/api_static/papers/${question_path_list[0]}/question_files/0.json"
+		},
+	},
 }
 
 var RESOURCES_PATH = "/edu_product/esp/assets/"
@@ -221,8 +243,11 @@ type ResourceItemExt struct {
 	} `json:"global_title"`
 
 	Relations struct {
+		// 课程包
 		NationalCourseResource []ResourceItem `json:"national_course_resource"`
 		EliteCourseResource    []ResourceItem `json:"course_resource"`
+		// 知识点微课
+		MicroCourseResource []ResourceItem `json:"lesson_1"`
 	} `json:"relations"`
 	TeacherList      []Teacher `json:"teacher_list"`
 	CustomProperties struct {
@@ -242,6 +267,7 @@ type ResourceItem struct {
 	TiItems          []TiItem `json:"ti_items"`
 	Title            string   `json:"title"`
 	ResourceType     string   `json:"resource_type_code_name"`
+	ContainerID      string   `json:"container_id"`
 	CustomProperties struct {
 		OriginalTitle string `json:"original_title"`
 		AliasName     string `json:"alias_name"`
@@ -338,6 +364,15 @@ type DataCourseInfo struct {
 }
 
 // examinationpapers / 试卷
+type PaperItem struct {
+	ID            string   `json:"id"`
+	Title         string   `json:"title"`
+	PDF_MAIN_LINK string   `json:"download_url_new"`
+	PDF_FULL_LINK string   `json:"download_url_with_answer_new"`
+	JSON_LINKS    []string `json:"question_path_list"`
+	// Parts         [] `json:"parts"`
+}
+
 // national_lesson / 国家课
 // elite_lesson / 精品课
 
