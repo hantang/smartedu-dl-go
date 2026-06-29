@@ -244,13 +244,11 @@ func extractM3u8Info(mediaPlaylist m3u8.MediaPlaylist) (keyURL, keyID string, iv
 		return "", "", nil, nil // fmt.Errorf("没有加密(无EXT-X-KEY标签)")
 	}
 	slog.Debug(fmt.Sprintf("加密方法(METHOD): %s\n", mediaPlaylist.Key.Method))
-	slog.Debug(fmt.Sprintf("密钥URI: %s\n", mediaPlaylist.Key.URI))
-	slog.Debug(fmt.Sprintf("IV值: %s\n", mediaPlaylist.Key.IV))
+	slog.Debug("检测到加密密钥配置")
 
 	keyURL = mediaPlaylist.Key.URI
 	parts := strings.Split(keyURL, "/")
 	keyID = parts[len(parts)-1]
-	slog.Debug(fmt.Sprintf("keyID: %s", keyID))
 
 	if mediaPlaylist.Key.IV != "" {
 		// 去除0x前缀
@@ -260,7 +258,7 @@ func extractM3u8Info(mediaPlaylist m3u8.MediaPlaylist) (keyURL, keyID string, iv
 			return "", "", nil, fmt.Errorf("failed to decode IV: %w", err)
 		}
 	}
-	slog.Debug(fmt.Sprintf("iv: %s", iv))
+	slog.Debug("成功提取加密参数")
 	return keyURL, keyID, iv, nil
 }
 
