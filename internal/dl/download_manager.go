@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -213,6 +212,8 @@ func (dm *DownloadManager) reserveSavePath(title string, suffix string) (string,
 	filename := fmt.Sprintf("%s.%s", title, suffix)
 	for {
 		outputPath := filepath.Join(dm.downloadsDir, filename)
+		slog.Debug(fmt.Sprintf("filename = %s, outputPath = %s", filename, outputPath))
+
 		file, err := os.OpenFile(outputPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
 		if err == nil {
 			return outputPath, file, nil
@@ -225,22 +226,61 @@ func (dm *DownloadManager) reserveSavePath(title string, suffix string) (string,
 	}
 }
 
-func sanitizeFilename(s string) string {
-	// 删除非法字符
-	invalidChars := regexp.MustCompile(`[/\\:*?"<>|]`)
-	s = invalidChars.ReplaceAllString(s, "")
-	s = strings.TrimSpace(s)
+func sanitizeWindowsFilename(name string) string {
+	// 替换所有 Windows 非法字符
+	// invalidChars := regexp.MustCompile(`[/\\:*?"<>|]`)
+	// blankChars := regexp.MustCompile(`[\r\n\t]+`)
 
-	// 控制最大长度（比如 255 字符）
-	maxLength := 255
-	if len(s) > maxLength {
-		s = strings.TrimSpace(s[:maxLength])
+	name = strings.Map(func(r rune) rune {
+		switch {
+		// Windows 不允许控制字符，如\n, \r, \t等
+		case r < 32:
+			return ' '
+
+		// Windows 非法字符
+		case strings.ContainsRune(`<>:"/\|?*`, r):
+			return '_'
+
+		default:
+			return r
+		}
+	}, name)
+	// Windows 不允许文件名以空格或 . 结尾
+	name = strings.TrimRight(name, " .")
+
+	// Windows 保留名称
+	base := strings.TrimSuffix(name, filepath.Ext(name))
+	switch strings.ToUpper(base) {
+	case "CON", "PRN", "AUX", "NUL",
+		"COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+		"LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9":
+		name = "_" + name
 	}
+	return name
+}
+
+func sanitizeFilename(name string) string {
+	name = strings.TrimSpace(name)
+
+	// 替换所有 Windows 非法字符
+	name = sanitizeWindowsFilename(name)
+
+	// 合并连续空白字符（空格、Tab、换行等）
+	name = strings.Join(strings.Fields(name), " ")
+
 	// 默认值
-	if s == "" {
-		return "Untitled"
+	if name == "" {
+		name = "Untitled"
 	}
-	return s
+
+	// 限制长度
+	const maxRunes = 255
+	runes := []rune(name)
+	if len(runes) > maxRunes {
+		name = strings.TrimRight(string(runes[:maxRunes]), " .")
+	}
+
+	return name
 }
 
 func (dm *DownloadManager) downloadFile(file LinkData, downloadedBytes *atomic.Int64, headers map[string]string) (bool, int, string) {
