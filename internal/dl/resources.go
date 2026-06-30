@@ -1,5 +1,9 @@
 package dl
 
+import (
+	"github.com/hantang/smartedudlgo/internal/util"
+)
+
 const APP_DESC string = "本工具用于下载智慧教育平台中的教材等资源，支持批量下载PDF等资源。"
 const LOG_FILE string = "log-smartedudl.txt"
 const APP_NAME string = "cn.smartedu"
@@ -18,15 +22,33 @@ var PAPER_SERVER = "https://bdcs-file-2.ykt.cbern.com.cn"
 // 下载数据格式（后缀）
 var FORMAT_LIST = []FormatData{
 	{"文档(PDF)", "pdf", true, true},
+	{"文档(文本)", "txt", true, false},
 	{"音频(MP3)", "mp3", true, false},
 	{"音频(OGG)", "ogg", true, false},
 	{"图片", "jpg", true, false},
 	// {"视频", "m3u8", false, false},
-	{"白板", "whiteboard", true, false},
+	{"白板", "superboard", true, false}, // whiteboard
 	{"字幕", "srt", true, false},
 }
 
-// folder
+// 当类型是folder时，该用MIME类型判断
+var MIME_TO_FORMAT = map[string]string{
+	"application/json": "json",
+	"application/ogg":  "ogg",
+	"application/pdf":  "pdf",
+	"application/zip":  "zip",
+	"audio/mpeg":       "mp3",
+	"audio/ogg":        "ogg",
+	"image/gif":        "gif",
+	"image/jpeg":       "jpg", // .jpeg
+	"image/png":        "png",
+	"image/webp":       "webp",
+	"text/plain":       "txt",
+	"video/m3u8":       "m3u8",
+	"document/json":    "json",
+	// "html":             "html",
+	// "superboard":       "superboard",
+}
 
 var FORMAT_VIDEO = []string{"m3u8"}
 
@@ -101,7 +123,6 @@ var RESOURCES_MAP = map[string]ResourceData{
 		},
 		// 如果 contentType=thematic_course TODO
 		// https://%s.ykt.cbern.com.cn/zxx/ndrs/special_edu/thematic_course/trees/%s.json 不一定有PDF
-		// audio: https://s-file-2.ykt.cbern.com.cn/zxx/ndrs/resources/1bb3e2fe-45a1-2999-e8b4-9fc63d0929bb/relation_audios.json
 	},
 
 	"/syncClassroom/prepare/detail": {
@@ -130,21 +151,32 @@ var RESOURCES_MAP = map[string]ResourceData{
 			"https://basic.smartedu.cn/qualityCourse?courseId=78605dce-97f6-62b7-6cb2-ac41ffd9467b&chapterId=1b2575b9-16f6-3501-8bbf-2d259fea97cf",
 		},
 		resources: ResourceInfo{
-			// https://s-file-1.ykt.cbern.com.cn/zxx/ndrv2/resources/78605dce-97f6-62b7-6cb2-ac41ffd9467b.json
 			basic: "https://%s.ykt.cbern.com.cn/zxx/ndrv2/resources/%s.json",
 		},
 	},
 	"/syncClassroom/detail": {
 		name:   "课程教学>教师授课备课>知识点微课, 学生自主学习>知识点微课", // 学生自主学习 fromPrepare=0 （类似课程包，仅视频+课件）
-		params: []string{"resourceId"},
+		params: []string{"resourceType", "resourceId"},
 		examples: []string{
+			// 课程教学
 			"https://basic.smartedu.cn/syncClassroom/detail?resourceId=f31ff464-4f6a-46b9-810f-77a247dff523&resourceType=knowledge_micro_lesson_package&chapterId=538ac938-a87d-37e9-9a3c-a2fb8322329e&teachingmaterialId=d92ca54e-2cdc-4921-95f3-769eafd0c814&fromPrepare=1&classHourId=lesson_1",
-			//来自页面 https://basic.smartedu.cn/syncClassroom/prepare?defaultTag=e7bbce2c-0590-11ed-9c79-92fc3b3249d5%2Fe7bbcf80-0590-11ed-9c79-92fc3b3249d5%2Fff8080814371757b01437c363a187b0a%2F44bec67a-54e6-11ed-9c34-850ba61fa9f4%2Fff8080814371757b014390f883db0453%2F5136342960
+			// 学生自主学习
 			"https://basic.smartedu.cn/syncClassroom/detail?resourceId=6ecee067-81c9-4e3b-b5dc-102fb6516267&resourceType=knowledge_micro_lesson_package&chapterId=ad4a5b55-565f-3606-b390-aa59419ca5e1&teachingmaterialId=e5053b45-7755-4017-8c2b-e7d35d307958&fromPrepare=0",
-			// 来自页面  https://basic.smartedu.cn/syncClassroom?defaultTag=e7bbce2c-0590-11ed-9c79-92fc3b3249d5%2F44bec0c6-54e6-11ed-9c34-850ba61fa9f4%2Fe7bbcfee-0590-11ed-9c79-92fc3b3249d5%2Fff8080814371757b01437c363a187b0a%2F8ae7e58b77b3bac901783dd80dee0c44%2F5136342960
+			// 吟唱
+			"https://basic.smartedu.cn/syncClassroom/detail?resourceId=31a9df92-dcbe-03b8-caf7-5e16b21342f6&resourceType=singing&chapterId=37222a90-fe72-3076-bf11-10d1c22e4fa6&teachingmaterialId=fafb7ff0-f6bb-4fe4-bc6c-362380b28735&fromPrepare=0&classHourId=lesson_1",
+			// 听力
+			"https://basic.smartedu.cn/syncClassroom/detail?resourceId=bd0d9bb9-9d40-d775-dc65-544a33d0fc80&resourceType=listening&chapterId=e1e1957d-8fa4-412c-8b9f-19ef062f1e35&teachingmaterialId=362cc792-7fbb-42f1-808a-9cca686bcc5a&fromPrepare=0&classHourId=lesson_1",
 		},
 		resources: ResourceInfo{
-			basic: "https://%s.ykt.cbern.com.cn/zxx/ndrv2/knowledge_micro_lesson_package/resources/details/%s.json",
+			basic: "https://%s.ykt.cbern.com.cn/zxx/ndrv2/%s/resources/details/%s.json",
+			// backup: []string{
+			// 	// 限制 resourceType=knowledge_micro_lesson_package
+			// 	"https://%s.ykt.cbern.com.cn/zxx/ndrv2/knowledge_micro_lesson_package/resources/details/%s.json",
+			// 	// 限制 resourceType=singing
+			// 	"https://%s.ykt.cbern.com.cn/zxx/ndrv2/singing/resources/details/%s.json",
+			// 	// 限制 resourceType=listening
+			// 	"https://%s.ykt.cbern.com.cn/zxx/ndrv2/listening/resources/details/%s.json",
+			// },
 		},
 	},
 
@@ -168,32 +200,18 @@ var RESOURCES_MAP = map[string]ResourceData{
 		},
 	},
 
-	// 更多（初步支持）
-	"/AIEducation/detail": {
-		name:   "人工智能教育",
-		params: []string{"contentId"},
-		examples: []string{
-			"https://basic.smartedu.cn/AIEducation/detail?contentType=thematic_course&contentId=07b7a332-5970-ad47-e699-6c376e2c630f&catalogType=AIEducation&subCatalog=learnAi",
-			"https://basic.smartedu.cn/AIEducation/detail?contentType=assets_video&contentId=c2c46b98-6079-35fc-1232-059c6277c519&catalogType=AIEducation&subCatalog=learnAi",
-		},
+	// 更多（初步支持，备用解析生效）
+	"/": {
+		name:     "其他",
+		params:   []string{"contentId"},
+		examples: []string{},
 		resources: ResourceInfo{
-			// TODO 如何区分contentType类型
-			// 限制 contentType=thematic_course
-			basic: "https://%s.ykt.cbern.com.cn/zxx/ndrs/special_edu/thematic_course/%s/resources/list.json",
-			backup: []string{
-				// 限制 contentType=assets_video
-				"https://%s.ykt.cbern.com.cn/zxx/ndrs/special_edu/resources/details/%s.json",
-			},
-		},
-	},
-	"/technologyEdu/detail": {
-		name:   "科技教育", // 视频
-		params: []string{"contentId"},
-		examples: []string{
-			"https://basic.smartedu.cn/technologyEdu/detail?contentType=assets_video&contentId=a952380a-81c8-ba51-d644-3c662587abd3&catalogType=technologyEdu&subCatalog=Learnkj",
-		},
-		resources: ResourceInfo{
+			// 限制 contentType
 			basic: "https://%s.ykt.cbern.com.cn/zxx/ndrs/special_edu/resources/details/%s.json",
+			backup: []string{
+				// 限制 contentType=thematic_course
+				"https://%s.ykt.cbern.com.cn/zxx/ndrs/special_edu/thematic_course/%s/resources/list.json",
+			},
 		},
 	},
 }
@@ -234,7 +252,7 @@ type LinkData struct {
 
 type FormatData struct {
 	Name   string
-	Suffix string
+	Suffix string // TODO
 	Status bool
 	Check  bool
 }
@@ -329,9 +347,9 @@ type TiItem struct {
 }
 
 type SubTiItem struct {
-	Name  string `json:"name"`
-	Type  string `json:"type"`
-	Value string `json:"value"`
+	Name  string            `json:"name"`
+	Type  string            `json:"type"`
+	Value util.StringOrList `json:"value"`
 }
 
 // tch_material_tag.json 结构
@@ -394,7 +412,7 @@ type DataCourseInfo struct {
 	// 更多字段 relations
 }
 
-// examinationpapers / 试卷
+// examinationpapers 试卷
 type PaperItem struct {
 	ID            string   `json:"id"`
 	Title         string   `json:"title"`

@@ -15,6 +15,12 @@ import (
 	"strings"
 )
 
+const (
+	serverKey      = "server"
+	contentTypeKey = "contentType"
+	// resourceTypeKey = "resourceType"
+)
+
 func ValidURL(link string) bool {
 	if link == "" || !strings.HasPrefix(link, "http") {
 		return false
@@ -30,10 +36,101 @@ func ValidURL(link string) bool {
 	if strings.Contains(path, RESOURCES_PATH) {
 		return true
 	}
-	if _, ok := RESOURCES_MAP[path]; !ok {
-		return false
-	}
+	// TODO 放宽限制
+	// if _, ok := RESOURCES_MAP[path]; !ok {
+	// 	return false
+	// }
 	return true
+}
+
+func buildURLParamDict(queryParams url.Values, configParams []string, random bool) map[string]string {
+
+	keys := append([]string{}, configParams...)
+	keys = append(keys, contentTypeKey)
+
+	m := make(map[string]string, len(keys)+1)
+
+	for _, k := range keys {
+		m[k] = queryParams.Get(k)
+	}
+
+	if len(SERVER_LIST) > 0 {
+		idx := 0
+		if random {
+			idx = rand.Intn(len(SERVER_LIST))
+		}
+		m[serverKey] = SERVER_LIST[idx]
+	}
+
+	return m
+}
+
+func parseResourceURL(path string, queryParams url.Values, audio bool, random bool, useBackup bool) ([]string, error) {
+	var configURLList []string
+	configInfo, ok := RESOURCES_MAP[path]
+	if !ok {
+		return configURLList, fmt.Errorf("invalid url path: %s", path)
+	}
+
+	// 忽略
+	contentTypeValue := queryParams.Get(contentTypeKey)
+	if path == "/tchMaterial/detail" && contentTypeValue != "assets_document" {
+		message := fmt.Sprintf("invalid params %s: %s", contentTypeKey, contentTypeValue)
+		slog.Warn(message)
+		return configURLList, fmt.Errorf("error %v", message)
+	}
+
+	// 参数列表
+	paramDict := buildURLParamDict(queryParams, configInfo.params, random)
+	slog.Debug("paramDict = " + fmt.Sprintf("%v", paramDict))
+
+	var paramValues []any
+	paramValues = append(paramValues, paramDict[serverKey])
+	for _, k := range configInfo.params {
+		paramValues = append(paramValues, paramDict[k])
+	}
+	configURL := fmt.Sprintf(configInfo.resources.basic, paramValues...)
+	configURLList = append(configURLList, configURL)
+
+	if useBackup {
+		for _, backupURL := range configInfo.resources.backup {
+			configURLList = append(configURLList, fmt.Sprintf(backupURL, paramValues...))
+		}
+	}
+
+	if audio && configInfo.resources.audio != "" {
+		configURLList = append(configURLList, fmt.Sprintf(configInfo.resources.audio, paramValues...))
+	}
+	return configURLList, nil
+}
+
+func parseExtraResourceURL(queryParams url.Values, random bool) ([]string, error) {
+	const path = "/"
+	var configURLList []string
+	configInfo, ok := RESOURCES_MAP[path]
+	if !ok {
+		return configURLList, fmt.Errorf("invalid url path: %s", path)
+	}
+	contentTypeValue := queryParams.Get(contentTypeKey)
+
+	// 参数列表
+	paramDict := buildURLParamDict(queryParams, configInfo.params, random)
+	slog.Debug("paramDict = " + fmt.Sprintf("%v", paramDict))
+
+	var paramValues []any
+	paramValues = append(paramValues, paramDict[serverKey])
+	for _, k := range configInfo.params {
+		paramValues = append(paramValues, paramDict[k])
+	}
+
+	urlTemplate := configInfo.resources.basic
+	if contentTypeValue == "thematic_course" && len(configInfo.resources.backup) > 0 {
+		urlTemplate = configInfo.resources.backup[0]
+	}
+	configURL := fmt.Sprintf(urlTemplate, paramValues...)
+	configURLList = append(configURLList, configURL)
+
+	return configURLList, nil
 }
 
 func parseURL(link string, audio bool, random bool, useBackup bool) ([]string, error) {
@@ -45,7 +142,6 @@ func parseURL(link string, audio bool, random bool, useBackup bool) ([]string, e
 	}
 
 	// 提取主机、路径和查询参数
-	// host := parsedURL.Host
 	path := parsedURL.Path
 	queryParams := parsedURL.Query()
 	if strings.Contains(path, RESOURCES_PATH) { // 资源链接，不再额外解析
@@ -53,45 +149,13 @@ func parseURL(link string, audio bool, random bool, useBackup bool) ([]string, e
 		return configURLList, nil
 	}
 
-	configInfo, ok := RESOURCES_MAP[path]
-	if !ok {
-		return configURLList, fmt.Errorf("invalid url path: %s", path)
+	_, ok := RESOURCES_MAP[path]
+	if ok {
+		return parseResourceURL(path, queryParams, audio, random, useBackup)
+	} else if useBackup {
+		return parseExtraResourceURL(queryParams, random)
 	}
 
-	contentTypeKey := "contentType"
-	serverKey := "server"
-	var paramList []string = append(configInfo.params, contentTypeKey)
-	paramDict := map[string]string{}
-	for _, key := range paramList {
-		paramDict[key] = queryParams.Get(key)
-	}
-	// TODO
-	if path == "/tchMaterial/detail" && paramDict[contentTypeKey] != "assets_document" {
-		slog.Warn(fmt.Sprintf("Error %s = %s. Ignore", contentTypeKey, paramDict[contentTypeKey]))
-		return configURLList, fmt.Errorf("invalid %s: %s", contentTypeKey, paramDict[contentTypeKey])
-	}
-
-	if random {
-		paramDict[serverKey] = SERVER_LIST[rand.Intn(len(SERVER_LIST))]
-	} else {
-		paramDict[serverKey] = SERVER_LIST[0]
-	}
-	slog.Debug("paramDict = " + fmt.Sprintf("%v", paramDict))
-
-	configURL := fmt.Sprintf(configInfo.resources.basic, paramDict[serverKey], paramDict[configInfo.params[0]])
-	configURLList = append(configURLList, configURL)
-	if useBackup {
-		for _, backupURL := range configInfo.resources.backup {
-			moreConfigURL := fmt.Sprintf(backupURL, paramDict[serverKey], paramDict[configInfo.params[0]])
-			configURLList = append(configURLList, moreConfigURL)
-		}
-	}
-
-	if audio && configInfo.resources.audio != "" {
-		audioURL := fmt.Sprintf(configInfo.resources.audio, paramDict[serverKey], paramDict[configInfo.params[0]])
-		slog.Debug(fmt.Sprintf("audioURL = %s", audioURL))
-		configURLList = append(configURLList, audioURL)
-	}
 	return configURLList, nil
 }
 
@@ -246,6 +310,7 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 
 	// 处理每个ResourceItem
 	for i, item := range items {
+		slog.Debug(fmt.Sprintf("item = %v", item))
 		// 补充额外信息，尽量避免标题重复
 		title := item.CustomProperties.OriginalTitle
 		if title == "" {
@@ -265,13 +330,20 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 				title = fmt.Sprintf("%s-%03d", "未命名", i)
 			}
 		}
-
+		slog.Debug(fmt.Sprintf("title = %s", title))
 		var rawLink string
 		var format string
 		var size int64
 
 		for _, tiItem := range item.TiItems {
-			if !slices.Contains(tiFormatList, tiItem.TiFormat) || len(tiItem.TiStorages) == 0 {
+			format = tiItem.TiFormat
+			if tiItem.TiFormat == "folder" {
+				if v, ok := MIME_TO_FORMAT[tiItem.LcTiFormat]; ok {
+					format = v
+				}
+			}
+			slog.Debug(fmt.Sprintf("formats = %s, %s; file suffix = %s", tiItem.TiFormat, tiItem.LcTiFormat, format))
+			if !slices.Contains(tiFormatList, format) || len(tiItem.TiStorages) == 0 {
 				continue
 			}
 
@@ -281,15 +353,23 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 				randomIndex = rand.Intn(len(tiItem.TiStorages))
 			}
 			rawLink = tiItem.TiStorages[randomIndex]
-			format = tiItem.TiFormat
 			size = tiItem.TiSize
 			if len(tiItem.CustomProperties.Requirements) > 0 {
 				for _, reqItem := range tiItem.CustomProperties.Requirements {
+					slog.Debug(fmt.Sprintf("reqItem = %v", reqItem))
 					// 视频大小
-					if reqItem.Name == "total_size" {
-						value, err := strconv.ParseInt(reqItem.Value, 10, 64) // 返回 int 类型
+					if reqItem.Name == "total_size" && len(reqItem.Value) > 0 {
+						value, err := strconv.ParseInt(reqItem.Value[0], 10, 64) // 返回 int 类型
 						if err == nil {
 							size = value
+						}
+					}
+					if tiItem.TiFormat == "folder" {
+						if reqItem.Name == "fileRange" && reqItem.Type == "RANGE" && len(reqItem.Value) > 0 {
+							rawLink = strings.TrimRight(rawLink, "/") + "/" + strings.TrimLeft(reqItem.Value[0], "/")
+						}
+						if strings.HasSuffix(rawLink, "/image") {
+							rawLink = ""
 						}
 					}
 				}
@@ -305,15 +385,16 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 
 		fullTitle := concatFullTitle(title, bookName, schoolName, teacherNames)
 		if rawLink != "" {
-			backupLink := convertURL(rawLink, true) // 备用下载链接
-			result = append(result, LinkData{
+			linkData := LinkData{
 				Format:    format,
 				Title:     fullTitle,
 				ID:        item.ID,
 				RawURL:    rawLink,
-				BackupURL: backupLink,
+				BackupURL: convertURL(rawLink, true), // 备用下载链接
 				Size:      size,
-			})
+			}
+			result = append(result, linkData)
+			slog.Debug(fmt.Sprintf("format = %s, linkData = %v", format, linkData))
 		}
 	}
 
@@ -497,6 +578,7 @@ func ExtractResources(links []string, formatList []string, random bool, useBacku
 			continue
 		}
 
+		// TODO
 		if strings.Contains(url, "/examinationpapers") {
 			slog.Debug(fmt.Sprintf("formatList = %v", formatList))
 			if slices.Contains(formatList, "pdf") {
@@ -505,7 +587,6 @@ func ExtractResources(links []string, formatList []string, random bool, useBacku
 					slog.Warn(fmt.Sprintf("parse paper resource error: %v", err))
 					continue
 				}
-
 				result = append(result, resources...)
 			}
 		} else {
