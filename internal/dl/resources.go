@@ -9,16 +9,20 @@ const LOG_FILE string = "log-smartedudl.txt"
 const APP_NAME string = "cn.smartedu"
 
 // 配置数据
-// 服务器前缀
+var SITE_HOST = "basic.smartedu.cn"
+
+// CDN服务器前缀
 var SERVER_LIST = []string{
 	"s-file-1",
 	"s-file-2",
 	"s-file-3",
 }
 
-// or: bdcs-file-1
-var PAPER_SERVER = "https://bdcs-file-2.ykt.cbern.com.cn"
-var SITE_HOST = "basic.smartedu.cn"
+// var PAPER_SERVER = "https://bdcs-file-2.ykt.cbern.com.cn"
+var BDCS_SERVER_LIST = []string{
+	"bdcs-file-1",
+	"bdcs-file-2",
+}
 
 // 下载数据格式（后缀）
 var FORMAT_LIST = []FormatData{
@@ -181,7 +185,24 @@ var RESOURCES_MAP = map[string]ResourceData{
 		},
 	},
 
-	// TODO 解析方式不同
+	// 更多（初步支持，备用解析生效）
+	"/detail": {
+		name:     "资源",
+		params:   []string{"contentId"},
+		examples: []string{},
+		resources: ResourceInfo{
+			// 限制 contentType
+			basic: "https://%s.ykt.cbern.com.cn/zxx/ndrs/special_edu/resources/details/%s.json",
+			backup: []string{
+				// 限制 contentType=thematic_course
+				"https://%s.ykt.cbern.com.cn/zxx/ndrs/special_edu/thematic_course/%s/resources/list.json",
+			},
+		},
+	},
+}
+
+// 多次解析
+var RESOURCES_MAP_EXT = map[string]ResourceData{
 	"/syncClassroom/examinationpapers": {
 		// "resource_type_code_name": "试卷",
 		name:   "课程教学>教师授课备课>习题资源, 学生自主学习>练习", // 学生自主学习 fromPrepare=0
@@ -194,25 +215,24 @@ var RESOURCES_MAP = map[string]ResourceData{
 		resources: ResourceInfo{
 			// JSON数据
 			basic: "https://%s.ykt.cbern.com.cn/zxx/ndrs/examinationpapers/resources/details/%s.json", // -> create_container_id
-			// step2: "https://bdcs-file-2.ykt.cbern.com.cn/xedu_cs_paper_bank/api_static/papers/${create_container_id}/data.json" // -> question_path_list
-			// step3:
-			// PDF：题目、题目和答案 download_url_new, download_url_with_answer_new
-			// "https://bdcs-file-2.ykt.cbern.com.cn/xedu_cs_paper_bank/api_static/papers/${question_path_list[0]}/question_files/0.json"
+			// step2
+			follow: "https://%s.ykt.cbern.com.cn/xedu_cs_paper_bank/api_static/papers/%s_%s/data.json",
 		},
 	},
 
-	// 更多（初步支持，备用解析生效）
-	"/detail": {
-		name:     "其他",
-		params:   []string{"contentId"},
-		examples: []string{},
+	"/courseDetail": {
+		name:   "课程详情", // 教师研修、体育、美育等：多个视频合集，格式不同
+		params: []string{"courseId"},
+		examples: []string{
+			"https://basic.smartedu.cn/teacherTraining/courseDetail?courseId=9c8f7873-6d79-48dd-8817-8a205fd82fbd&tag=&channelId=492d9863-a23c-4910-9800-59d17d656848&libraryId=8542417b-74bb-4e4e-ad1c-d850f66af3ff&breadcrumb=师德师风&resourceId=d7aeb4ab-adc9-11ec-9c6b-cf20220331ab",
+			"https://basic.smartedu.cn/sport/courseDetail?courseId=8177c6f8-2232-4168-bb41-0147255b0d75&tag=专项训练&channelId=40bca6ef-ee76-40c8-b059-89e5baf01134&libraryId=3cdefab6-f36b-4bf7-ae44-033577ba93af&breadcrumb=体能训练&firstLevel=64868ec4-935b-4904-b39c-d56c6841301e&secondLevel=838d788b-2498-4891-bf8d-9ed97e8e9cbb&thirdLevel=78561c5f-e148-4dfb-affb-ef4af0f0561f",
+			"https://basic.smartedu.cn/art/courseDetail?courseId=82847472-8ae0-4b26-87d6-94ca9bd21a9e&tag=声乐类&channelId=31741f87-5444-42f9-ac3f-795d7dc7ef7a&libraryId=7612f2f2-98f1-46e1-b889-36bdecdbe63e&breadcrumb=艺术技能&firstLevel=c9b9ccdc-6c24-43f3-842a-edd55333a0df&secondLevel=d942b76a-88ca-4939-aa58-e8747a9cff64&resourceId=cd730855-f32c-4758-bf8c-99ce3888f4f6",
+		},
 		resources: ResourceInfo{
-			// 限制 contentType
-			basic: "https://%s.ykt.cbern.com.cn/zxx/ndrs/special_edu/resources/details/%s.json",
-			backup: []string{
-				// 限制 contentType=thematic_course
-				"https://%s.ykt.cbern.com.cn/zxx/ndrs/special_edu/thematic_course/%s/resources/list.json",
-			},
+			basic: "https://%s.ykt.cbern.com.cn/teach/s_course/v2/business_courses/%s/course_relative_infos/zh-CN.json",
+			// 第二步 activity_set_id
+			follow: "https://%s.ykt.cbern.com.cn/twy/s_course/v2/activity_sets/%s/fulls.json",
+			// 或者	"https://%s.ykt.cbern.com.cn/teach/s_course/v2/activity_sets/%s/fulls.json",
 		},
 	},
 }
@@ -232,6 +252,7 @@ type ResourceInfo struct {
 	basic  string
 	backup []string
 	audio  string
+	follow string
 }
 
 type ResourceData struct {
@@ -424,6 +445,14 @@ type PaperItem struct {
 	// Parts         [] `json:"parts"`
 }
 
+type CourseDetailItem struct {
+	Course struct {
+		ID              string `json:"id"`
+		ACTIVITY_SET_ID string `json:"activity_set_id"`
+		SUMMARY         string `json:"summary"`
+	} `json:"course_detail"`
+}
+
 // national_lesson / 国家课
 // elite_lesson / 精品课
 
@@ -478,4 +507,10 @@ type ReadingTag struct {
 	ID    string `json:"id"`
 	Title string `json:"title"`
 	Code  string `json:"code"`
+}
+
+type LinkPair struct {
+	query  string
+	config string
+	// isBackup bool
 }

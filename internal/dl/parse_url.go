@@ -13,6 +13,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/tidwall/gjson"
 )
 
 const (
@@ -30,7 +32,7 @@ func ValidURL(link string) bool {
 	if err != nil || parsedURL.Host != SITE_HOST {
 		return false
 	}
-	slog.Debug(parsedURL.Host)
+
 	path := parsedURL.Path
 	// 允许直接输入下载资源链接
 	if strings.Contains(path, RESOURCES_PATH) {
@@ -38,14 +40,31 @@ func ValidURL(link string) bool {
 	}
 
 	// 网站页面 放宽限制
-	if _, ok := RESOURCES_MAP[path]; !(ok || isDetailResourceURL(link)) {
-		return false
+	return isAcceptPath(link, path)
+}
+
+func isDetailResourceURL(path string) bool {
+	return strings.Contains(path, "/detail") && strings.Contains(path, "contentType=")
+}
+
+func isCourseDetailResourceURL(path string) bool {
+	return strings.Contains(path, "/courseDetail") && strings.Contains(path, "courseId=")
+}
+
+func isAcceptPath(link string, path string) bool {
+	if _, ok := RESOURCES_MAP[path]; ok {
+		return true
 	}
-	return true
+	if _, ok := RESOURCES_MAP_EXT[path]; ok {
+		return true
+	}
+	if isDetailResourceURL(link) || isCourseDetailResourceURL(link) {
+		return true
+	}
+	return false
 }
 
 func buildURLParamDict(queryParams url.Values, configParams []string, random bool) map[string]string {
-
 	keys := append([]string{}, configParams...)
 	keys = append(keys, contentTypeKey)
 
@@ -69,6 +88,9 @@ func buildURLParamDict(queryParams url.Values, configParams []string, random boo
 func parseResourceURL(path string, queryParams url.Values, audio bool, random bool, useBackup bool) ([]string, error) {
 	var configURLList []string
 	configInfo, ok := RESOURCES_MAP[path]
+	if !ok {
+		configInfo, ok = RESOURCES_MAP_EXT[path]
+	}
 	if !ok {
 		return configURLList, fmt.Errorf("invalid url path: %s", path)
 	}
@@ -105,19 +127,17 @@ func parseResourceURL(path string, queryParams url.Values, audio bool, random bo
 	return configURLList, nil
 }
 
-func isDetailResourceURL(path string) bool {
-	return strings.Contains(path, "/detail") && strings.Contains(path, "contentType=")
-}
-
-func parseDetailResourceURL(queryParams url.Values, random bool) ([]string, error) {
-	const path = "/detail"
+func parseExtraResourceURL(path string, queryParams url.Values, random bool) ([]string, error) {
 	var configURLList []string
 	configInfo, ok := RESOURCES_MAP[path]
 	if !ok {
+		configInfo, ok = RESOURCES_MAP_EXT[path]
+	}
+	if !ok {
 		return configURLList, fmt.Errorf("invalid url path: %s", path)
 	}
-	contentTypeValue := queryParams.Get(contentTypeKey)
 
+	contentTypeValue := queryParams.Get(contentTypeKey)
 	// 参数列表
 	paramDict := buildURLParamDict(queryParams, configInfo.params, random)
 	slog.Debug("paramDict = " + fmt.Sprintf("%v", paramDict))
@@ -155,24 +175,39 @@ func parseURL(link string, audio bool, random bool, useBackup bool) ([]string, e
 	}
 
 	_, ok := RESOURCES_MAP[path]
+	if !ok {
+		_, ok = RESOURCES_MAP_EXT[path]
+	}
+
 	if ok {
 		return parseResourceURL(path, queryParams, audio, random, useBackup)
 	} else if useBackup {
-		return parseDetailResourceURL(queryParams, random)
-	}
+		path := ""
+		if isDetailResourceURL(link) {
+			path = "/detail"
+		} else if isCourseDetailResourceURL(link) {
+			path = "/courseDetail"
+		}
 
+		if path != "" {
+			return parseExtraResourceURL(path, queryParams, random)
+		}
+	}
 	return configURLList, nil
 }
 
-func parseURLList(links []string, audio bool, random bool, useBackup bool) []string {
-	var configURLList []string
+func parseURLList(links []string, audio bool, random bool, useBackup bool) []LinkPair {
+	var configURLList []LinkPair
 	for _, link := range links {
 		output, err := parseURL(link, audio, random, useBackup)
 		if err != nil {
 			slog.Debug(fmt.Sprintf("parse link error: %v", err))
 			continue
 		}
-		configURLList = append(configURLList, output...)
+		for _, configLink := range output {
+			pair := LinkPair{query: link, config: configLink}
+			configURLList = append(configURLList, pair)
+		}
 	}
 	return configURLList
 }
@@ -408,7 +443,7 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 	return result, nil
 }
 
-func parsePaperResourceItems(data []byte) ([]LinkData, error) {
+func parsePaperResourceItems(data []byte, random bool) ([]LinkData, error) {
 	// 练习（试卷） 或者 container_id 字段，请求data.json获得pdf
 	var result []LinkData
 	var resourceItem ResourceItem
@@ -416,8 +451,14 @@ func parsePaperResourceItems(data []byte) ([]LinkData, error) {
 		return nil, err
 	}
 
+	cdnHost := BDCS_SERVER_LIST[0]
+	if random {
+		cdnHost = BDCS_SERVER_LIST[rand.Intn(len(BDCS_SERVER_LIST))]
+	}
 	resourceType := resourceItem.ResourceType // "试卷"
-	dataURL := fmt.Sprintf("%s/xedu_cs_paper_bank/api_static/papers/%s_%s/data.json", PAPER_SERVER, resourceItem.ContainerID, resourceItem.ID)
+	configInfo := RESOURCES_MAP_EXT["/syncClassroom/examinationpapers"]
+
+	dataURL := fmt.Sprintf(configInfo.resources.follow, cdnHost, resourceItem.ContainerID, resourceItem.ID)
 	slog.Debug(fmt.Sprintf("resourceType = %s, dataURL = %v", resourceType, dataURL))
 	dataResult, err, statusOK := FetchJsonData(dataURL)
 	if err != nil || !statusOK {
@@ -432,9 +473,11 @@ func parsePaperResourceItems(data []byte) ([]LinkData, error) {
 
 	pdfLinks := []string{paperItem.PDF_MAIN_LINK, paperItem.PDF_FULL_LINK}
 	for _, urlPath := range pdfLinks {
-		slog.Info(fmt.Sprintf("pdfLink = %s", urlPath))
 		if strings.HasPrefix(urlPath, "/") {
-			downloadURL := PAPER_SERVER + urlPath
+			downloadURL, _ := url.Parse(dataURL)
+			downloadURL.Path = urlPath
+			slog.Info(fmt.Sprintf("pdfLink = %s\ndownload = %s", urlPath, downloadURL))
+
 			filename := path.Base(urlPath)
 			name := strings.TrimSuffix(filename, path.Ext(filename))
 			if name == "" {
@@ -447,13 +490,69 @@ func parsePaperResourceItems(data []byte) ([]LinkData, error) {
 			result = append(result, LinkData{
 				Format:    "pdf",
 				Title:     name,
+				Folder:    paperItem.Title,
 				ID:        paperItem.ID,
-				RawURL:    downloadURL,
-				BackupURL: downloadURL,
+				RawURL:    downloadURL.String(),
+				BackupURL: downloadURL.String(),
 				Size:      -1,
 			})
 		}
 	}
+	slog.Debug(fmt.Sprintf("Extract result items = %d", len(result)))
+	return result, nil
+}
+
+func parseCourseResourceItems(data []byte, random bool) ([]LinkData, error) {
+	// 视频合集
+	var result []LinkData
+	var courseItem CourseDetailItem
+	if err := json.Unmarshal(data, &courseItem); err != nil {
+		return nil, err
+	}
+
+	cdnHost := SERVER_LIST[0]
+	if random {
+		cdnHost = SERVER_LIST[rand.Intn(len(SERVER_LIST))]
+	}
+	activity_set_id := courseItem.Course.ACTIVITY_SET_ID
+	configInfo := RESOURCES_MAP_EXT["/courseDetail"]
+
+	dataURL := fmt.Sprintf(configInfo.resources.follow, cdnHost, activity_set_id)
+	slog.Debug(fmt.Sprintf("dataURL = %v", dataURL))
+	dataResult, err, statusOK := FetchJsonData(dataURL)
+	if err != nil || !statusOK {
+		slog.Warn(fmt.Sprintf("fetch data error: %v / status=%v", err, statusOK))
+		return nil, err
+	}
+
+	// 解析数据
+	activitySetName := gjson.GetBytes(dataResult, "activity_set_name").String()
+	nodes := gjson.GetBytes(dataResult, "nodes")
+	nodes.ForEach(func(_, value gjson.Result) bool {
+		res := value.Get("relations.activity.activity_resources")
+		res.ForEach(func(_, item gjson.Result) bool {
+			title := item.Get("video_extend.title").String()
+			urls := item.Get("video_extend.urls").Array() // 多条数据，内容一致但文件大小不同: 720p, 480p
+			if len(urls) > 0 {
+				m3u8URLS := urls[0].Get("urls").Array() // 多个候选，随机
+				if len(m3u8URLS) > 0 {
+					downloadURL := m3u8URLS[rand.Intn(len(m3u8URLS))].String()
+					result = append(result, LinkData{
+						Format:    "m3u8",
+						Title:     title,
+						Folder:    activitySetName,
+						ID:        item.Get("resource_id").String(),
+						RawURL:    downloadURL,
+						BackupURL: downloadURL,
+						Size:      -1, // urls[0].Get("size").Int() 不准确
+					})
+				}
+			}
+			return true
+		})
+		return true
+	})
+
 	slog.Debug(fmt.Sprintf("Extract result items = %d", len(result)))
 	return result, nil
 }
@@ -558,13 +657,23 @@ func ExtractResources(links []string, formatList []string, random bool, useBacku
 		}
 	}
 	slog.Debug(fmt.Sprintf("formats=%v audio=%v random=%v backup=%v", formatList, audio, random, useBackup))
-	configURLList := links
+	var configURLList []LinkPair
 	if isParse {
 		configURLList = parseURLList(links, audio, random, useBackup)
+	} else {
+		for _, link := range links {
+			pair := LinkPair{query: link, config: link}
+			configURLList = append(configURLList, pair)
+		}
 	}
-	slog.Debug(fmt.Sprintf("configURLList is %v", len(configURLList)))
+	slog.Debug(fmt.Sprintf("links = %v, configURLList is %v", len(links), len(configURLList)))
 
-	for _, url := range configURLList {
+	for _, pair := range configURLList {
+		var (
+			resources []LinkData
+			errMsg    string
+			url       = pair.config
+		)
 		slog.Debug("config url = " + url)
 
 		// 是否直接资源链接
@@ -584,25 +693,35 @@ func ExtractResources(links []string, formatList []string, random bool, useBacku
 			continue
 		}
 
-		// TODO
-		if strings.Contains(url, "/examinationpapers") {
-			slog.Debug(fmt.Sprintf("formatList = %v", formatList))
-			if slices.Contains(formatList, "pdf") {
-				resources, err := parsePaperResourceItems(data)
-				if err != nil {
-					slog.Warn(fmt.Sprintf("parse paper resource error: %v", err))
-					continue
-				}
-				result = append(result, resources...)
-			}
-		} else {
-			resources, err := parseResourceItems(data, formatList, random)
-			if err != nil {
-				slog.Warn(fmt.Sprintf("parse resource data error: %v", err))
+		slog.Debug(fmt.Sprintf("formatList = %v", formatList))
+		switch {
+		case strings.Contains(pair.query, "/syncClassroom/examinationpapers"):
+			slog.Debug("process as parsePaperResourceItems")
+			if !slices.Contains(formatList, "pdf") {
 				continue
 			}
-			result = append(result, resources...)
+			errMsg = "parse paper resource error"
+			resources, err = parsePaperResourceItems(data, random)
+
+		case isCourseDetailResourceURL(pair.query):
+			slog.Debug("process as isCourseDetailResourceURL")
+			if !slices.Contains(formatList, "m3u8") {
+				continue
+			}
+			errMsg = "parse course detail error"
+			resources, err = parseCourseResourceItems(data, random)
+
+		default:
+			errMsg = "parse resource data error"
+			resources, err = parseResourceItems(data, formatList, random)
 		}
+
+		if err != nil {
+			slog.Warn(fmt.Sprintf("%s: %v", errMsg, err))
+			continue
+		}
+
+		result = append(result, resources...)
 	}
 
 	// 去重
