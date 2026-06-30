@@ -22,7 +22,7 @@ var PAPER_SERVER = "https://bdcs-file-2.ykt.cbern.com.cn"
 // 下载数据格式（后缀）
 var FORMAT_LIST = []FormatData{
 	{"文档(PDF)", "pdf", true, true},
-	{"文档(文本)", "txt", true, false},
+	{"文档(文本)", "txt", false, false},
 	{"音频(MP3)", "mp3", true, false},
 	{"音频(OGG)", "ogg", true, false},
 	{"图片", "jpg", true, false},

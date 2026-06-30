@@ -42,13 +42,17 @@ func CreateInputTab(w fyne.Window, linkItemMaps map[string][]dl.LinkItem, name s
 	})
 
 	// Description text
-	info := fmt.Sprintf(
-		"支持的URL格式示例：\n• 📚 教材URL: %s\n• 📹 课程URL: %s\n• 🎥 精品课程: %s\n• 🌐 资源链接: %s\n\n📝 可直接从浏览器地址栏复制URL。",
-		fmt.Sprintf(dl.TchMaterialInfo.Detail, "{contentId}"),
-		fmt.Sprintf(dl.SyncClassroomInfo.Detail, "{activityId}"),
-		fmt.Sprintf(dl.EliteSyncClassroomInfo.Detail, "{courseId}"),
-		fmt.Sprintf("完整的PDF、m3u8等URL（%s）", dl.RESOURCES_PATH),
-	)
+	info := strings.Join([]string{
+		"支持的URL格式示例：",
+		fmt.Sprintf("• 📚 教材URL: %s", fmt.Sprintf(dl.TchMaterialInfo.Detail, "{contentId}")),
+		fmt.Sprintf("• 📹 课程URL: %s", fmt.Sprintf(dl.SyncClassroomInfo.Detail, "{activityId}")),
+		fmt.Sprintf("• 🎥 精品课程: %s", fmt.Sprintf(dl.EliteSyncClassroomInfo.Detail, "{courseId}")),
+		fmt.Sprintf("• 🗃️ 资源链接: %s", fmt.Sprintf("完整的PDF、m3u8等URL（%s）", dl.RESOURCES_PATH)),
+		"• 🌐 德育、人工智能、科技教育等页面资源解析（需要启用“备用解析”）",
+		"",
+		"【提示】可直接从浏览器地址栏复制URL。",
+	}, "\n")
+
 	bottom := container.NewVBox(
 		container.NewCenter(clearButton),
 		container.NewPadded(),

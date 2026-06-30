@@ -18,35 +18,25 @@ import (
 	"github.com/hantang/smartedudlgo/internal/util"
 )
 
-func createFormatCheckboxes() []fyne.CanvasObject {
+func createFormatCheckboxes(onlyAudio bool, enableText bool) []fyne.CanvasObject {
 	// 资源类型复选框
 	var checkboxes []fyne.CanvasObject
-
 	for _, format := range dl.FORMAT_LIST {
 		checkbox := widget.NewCheck(format.Name, func(checked bool) {
 			// 处理复选框状态变化的逻辑
 		})
-
-		if !format.Status {
-			checkbox.Disable()
+		if onlyAudio {
+			if strings.Contains(format.Name, "音频") {
+				checkbox.SetChecked(format.Suffix == "mp3")
+			} else {
+				checkbox.Disable()
+			}
 		} else {
-			checkbox.SetChecked(format.Check)
-		}
-		checkboxes = append(checkboxes, checkbox)
-	}
-	return checkboxes
-}
-
-func createAudioCheckboxes() []fyne.CanvasObject {
-	// 资源类型复选框
-	var checkboxes []fyne.CanvasObject
-	for _, format := range dl.FORMAT_LIST {
-		checkbox := widget.NewCheck(format.Name, func(checked bool) {
-		})
-		if strings.Contains(format.Name, "音频") {
-			checkbox.SetChecked(format.Suffix == "mp3")
-		} else {
-			checkbox.Disable()
+			if !format.Status && !(enableText && format.Suffix == "txt") {
+				checkbox.Disable()
+			} else {
+				checkbox.SetChecked(format.Check)
+			}
 		}
 		checkboxes = append(checkboxes, checkbox)
 	}
@@ -140,12 +130,15 @@ func CreateOperationArea(w fyne.Window, tab *container.AppTabs, linkItemMaps map
 	updateCheckboxes := func() {
 		formatContainer.Objects = nil
 		var checkboxes []fyne.CanvasObject
-		if tab.Selected() != nil && tab.Selected().Text == dl.TAB_NAMES[3] {
-			checkboxes = createAudioCheckboxes()
-			downloadVideoButton.Disable()
-		} else {
-			checkboxes = createFormatCheckboxes()
-			downloadVideoButton.Enable()
+
+		if tab.Selected() != nil {
+			onlyAudio := tab.Selected().Text == dl.TAB_NAMES[3]
+			checkboxes = createFormatCheckboxes(onlyAudio, tab.Selected().Text == dl.TAB_NAMES[0])
+			if onlyAudio {
+				downloadVideoButton.Disable()
+			} else {
+				downloadVideoButton.Enable()
+			}
 		}
 		formatContainer.Objects = checkboxes
 		formatContainer.Refresh()
