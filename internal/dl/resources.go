@@ -244,6 +244,7 @@ type ResourceData struct {
 type LinkData struct {
 	Format    string
 	Title     string
+	Folder    string
 	ID        string
 	RawURL    string
 	BackupURL string

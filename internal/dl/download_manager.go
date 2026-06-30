@@ -201,31 +201,81 @@ func saveLogFile(downloadsDir string, results []string) {
 	}
 }
 
-func (dm *DownloadManager) reserveSavePath(title string, suffix string) (string, *os.File, error) {
+func (dm *DownloadManager) reserveSavePath(
+	folder string,
+	stem string,
+	suffix string,
+	autoRename bool,
+) (string, *os.File, error) {
+
 	dm.savePathMu.Lock()
 	defer dm.savePathMu.Unlock()
 
-	index := 0
+	// 修正后缀 m3u8 -> ts
 	if suffix == "m3u8" {
 		suffix = "ts"
 	}
-	filename := fmt.Sprintf("%s.%s", title, suffix)
-	for {
-		outputPath := filepath.Join(dm.downloadsDir, filename)
-		slog.Debug(fmt.Sprintf("filename = %s, outputPath = %s", filename, outputPath))
 
-		file, err := os.OpenFile(outputPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+	// 去除文件中特殊字符
+	if folder != "" {
+		folder = sanitizeFilename(folder)
+	}
+	stem = sanitizeFilename(stem)
+
+	index := 0
+	for {
+		name := stem
+
+		if index > 0 {
+			if suffix != "" {
+				name = fmt.Sprintf("%s (%d).%s", stem, index, suffix)
+			} else {
+				name = fmt.Sprintf("%s (%d)", stem, index)
+			}
+		} else {
+			if suffix != "" {
+				name = fmt.Sprintf("%s.%s", stem, suffix)
+			}
+		}
+
+		// 构建路径（folder 可选）
+		parts := []string{dm.downloadsDir}
+
+		if folder != "" {
+			parts = append(parts, folder)
+		}
+
+		parts = append(parts, name)
+		outputPath := filepath.Join(parts...)
+
+		dir := filepath.Dir(outputPath)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			// 目录创建失败
+			return "", nil, err
+		}
+		file, err := os.OpenFile(
+			outputPath,
+			os.O_WRONLY|os.O_CREATE|os.O_EXCL,
+			0644,
+		)
+
 		if err == nil {
 			return outputPath, file, nil
 		}
-		if !errors.Is(err, os.ErrExist) {
-			return outputPath, nil, err
+
+		// 文件已存在
+		if os.IsExist(err) {
+			if !autoRename {
+				return "", nil, fmt.Errorf("file exists: %s", outputPath)
+			}
+			index++
+			continue
 		}
-		index += 1
-		filename = fmt.Sprintf("%s (%d).%s", title, index, suffix)
+
+		// 其他错误
+		return "", nil, err
 	}
 }
-
 func sanitizeWindowsFilename(name string) string {
 	// 替换所有 Windows 非法字符
 	// invalidChars := regexp.MustCompile(`[/\\:*?"<>|]`)
@@ -316,15 +366,12 @@ func (dm *DownloadManager) downloadFile(file LinkData, downloadedBytes *atomic.I
 		slog.Warn(fmt.Sprintf("下载 %s 状态异常: %v", file.Title, resp.StatusCode))
 		return false, statusCode, ""
 	}
-
-	// 去除标题中特殊字符
-	filename := sanitizeFilename(file.Title)
-	outputPath, out, err := dm.reserveSavePath(filename, file.Format)
+	outputPath, reservedFile, err := dm.reserveSavePath(file.Folder, file.Title, file.Format, true)
 	if err != nil {
 		slog.Warn(fmt.Sprintf("创建文件 %s 出错：%v\n", outputPath, err))
 		return false, statusCode, outputPath
 	}
-	defer out.Close()
+	defer reservedFile.Close()
 
 	isSuccess := true
 	buffer := make([]byte, 32*1024) // 32KB大小
@@ -341,7 +388,7 @@ func (dm *DownloadManager) downloadFile(file LinkData, downloadedBytes *atomic.I
 		}
 		if n > 0 {
 			// Write to file
-			if _, err := out.Write(buffer[:n]); err != nil {
+			if _, err := reservedFile.Write(buffer[:n]); err != nil {
 				slog.Warn(fmt.Sprintf("写入文件 %s 出错：%v\n", file.Title, err))
 				isSuccess = false
 				break
@@ -362,8 +409,7 @@ func (dm *DownloadManager) downloadVideoFile(file LinkData, downloadedBytes *ato
 	}
 
 	slog.Debug(fmt.Sprintf("URL = %s", url))
-	filename := sanitizeFilename(file.Title)
-	outputPath, reservedFile, err := dm.reserveSavePath(filename, file.Format)
+	outputPath, reservedFile, err := dm.reserveSavePath(file.Folder, file.Title, file.Format, true)
 	if err != nil {
 		slog.Warn(fmt.Sprintf("创建文件 %s 出错：%v\n", outputPath, err))
 		return false, -1, outputPath

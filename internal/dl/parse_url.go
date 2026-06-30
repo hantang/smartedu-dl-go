@@ -383,11 +383,12 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 			}
 		}
 
-		fullTitle := concatFullTitle(title, bookName, schoolName, teacherNames)
+		fullTitle := concatFullTitle(title, "", schoolName, teacherNames)
 		if rawLink != "" {
 			linkData := LinkData{
 				Format:    format,
 				Title:     fullTitle,
+				Folder:    bookName,
 				ID:        item.ID,
 				RawURL:    rawLink,
 				BackupURL: convertURL(rawLink, true), // 备用下载链接
