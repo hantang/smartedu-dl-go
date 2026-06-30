@@ -19,7 +19,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/grafov/m3u8"
+	"github.com/Eyevinn/hls-m3u8/m3u8"
 )
 
 func encryptMD5(text string) string {
@@ -240,19 +240,30 @@ func GetM3U8Size(m3u8URL string, headers map[string]string) (int64, error) {
 }
 
 func extractM3u8Info(mediaPlaylist m3u8.MediaPlaylist) (keyURL, keyID string, iv []byte, err error) {
-	if mediaPlaylist.Key == nil {
-		return "", "", nil, nil // fmt.Errorf("没有加密(无EXT-X-KEY标签)")
+	if len(mediaPlaylist.Keys) == 0 {
+		return "", "", nil, nil // 没有加密(无EXT-X-KEY标签)
 	}
-	slog.Debug(fmt.Sprintf("加密方法(METHOD): %s\n", mediaPlaylist.Key.Method))
+
+	// 取第一把 key（METHOD=NONE 的情况下 URI 通常为空，可按需跳过）
+	key := mediaPlaylist.Keys[0]
+	for _, k := range mediaPlaylist.Keys {
+		if k.Method != "" && k.Method != "NONE" {
+			key = k
+			break
+		}
+	}
+
+	slog.Debug(fmt.Sprintf("加密方法(METHOD): %s\n", key.Method))
 	slog.Debug("检测到加密密钥配置")
 
-	keyURL = mediaPlaylist.Key.URI
+	keyURL = key.URI
 	parts := strings.Split(keyURL, "/")
 	keyID = parts[len(parts)-1]
 
-	if mediaPlaylist.Key.IV != "" {
+	if key.IV != "" {
 		// 去除0x前缀
-		hexStr := strings.TrimPrefix(mediaPlaylist.Key.IV, "0x")
+		hexStr := strings.TrimPrefix(key.IV, "0x")
+		hexStr = strings.TrimPrefix(hexStr, "0X")
 		iv, err = hex.DecodeString(hexStr)
 		if err != nil {
 			return "", "", nil, fmt.Errorf("failed to decode IV: %w", err)
@@ -436,6 +447,7 @@ func DownloadM3U8(m3u8URL, savePath string, headers map[string]string, downloade
 	}
 
 	playlist, listType, err := m3u8.DecodeFrom(resp.Body, true)
+	_ = playlist.DecodeFrom(resp.Body, true)
 	if err != nil {
 		return statusCode, fmt.Errorf("解析 M3U8 播放列表失败: %w", err)
 	}
