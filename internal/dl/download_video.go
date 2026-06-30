@@ -398,11 +398,6 @@ type segmentJob struct {
 	url   string
 }
 
-// 并发下载 ts 文件并按顺序写入输出文件
-func downloadAllTS(tempDir string, urls []string, headers map[string]string, maxConcurrency int, downloadedBytes *atomic.Int64) error {
-	return downloadAllTSWithRetry(tempDir, urls, headers, maxConcurrency, downloadedBytes, nil)
-}
-
 func downloadAllTSWithRetry(tempDir string, urls []string, headers map[string]string, maxConcurrency int, downloadedBytes *atomic.Int64, retryStats *atomic.Int64) error {
 	var wg sync.WaitGroup
 	downloadChan := make(chan segmentJob, len(urls))
