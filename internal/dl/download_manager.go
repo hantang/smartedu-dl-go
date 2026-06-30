@@ -18,6 +18,29 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
+// DownloadStats 线程安全的下载统计
+type DownloadStats struct {
+	downloadedBytes atomic.Int64
+	downloadedFiles atomic.Int64
+	successCount    atomic.Int64
+	retryCount      atomic.Int64
+	statsMu         sync.RWMutex
+}
+
+// GetProgress 原子地获取进度信息，避免竞态条件
+func (ds *DownloadStats) GetProgress(totalSize int64, totalFiles int) (progress float64, filesCount int64) {
+	ds.statsMu.RLock()
+	defer ds.statsMu.RUnlock()
+
+	downloaded := float64(ds.downloadedBytes.Load())
+	filesCount = ds.downloadedFiles.Load()
+	progress = float64(filesCount) / float64(totalFiles)
+	if totalSize > 0 {
+		progress = downloaded / float64(totalSize)
+	}
+	return
+}
+
 // DownloadManager 处理下载逻辑
 type DownloadManager struct {
 	window       fyne.Window
@@ -56,9 +79,7 @@ func (dm *DownloadManager) StartDownload(downloadButton *widget.Button, download
 	}
 	slog.Debug(fmt.Sprintf("Total links = %d, total file size = %d", len(dm.links), totalSize))
 
-	var downloadedBytes atomic.Int64
-	var downloadedFiles atomic.Int64
-	var successCount atomic.Int64
+	stats := &DownloadStats{}
 	var tokenInvalid atomic.Bool
 	var wg sync.WaitGroup
 	if maxConcurrency < 1 {
@@ -84,16 +105,16 @@ func (dm *DownloadManager) StartDownload(downloadButton *widget.Button, download
 			case <-done:
 				return
 			case <-ticker.C:
-				downloaded := float64(downloadedBytes.Load())
-				downloadedFiles := int64(downloadedFiles.Load())
-				progress := float64(downloadedFiles) / float64(len(dm.links))
-				if totalSize > 0 {
-					progress = downloaded / float64(totalSize)
-				}
+				progress, numFiles := stats.GetProgress(totalSize, len(dm.links))
+				retries := stats.retryCount.Load()
 
 				fyne.DoAndWait(func() {
 					dm.progressBar.SetValue(progress)
-					dm.statusLabel.SetText(fmt.Sprintf("下载中... %d/%d 个文件", downloadedFiles, len(dm.links)))
+					statusText := fmt.Sprintf("下载中... %d/%d 个文件", numFiles, len(dm.links))
+					if retries > 0 {
+						statusText += fmt.Sprintf(" (重试: %d次)", retries)
+					}
+					dm.statusLabel.SetText(statusText)
 				})
 			}
 		}
@@ -109,13 +130,13 @@ func (dm *DownloadManager) StartDownload(downloadButton *widget.Button, download
 			for file := range jobs {
 				isSuccess, statusCode, outputPath := false, 0, ""
 				if isVideo {
-					isSuccess, statusCode, outputPath = dm.downloadVideoFile(file, &downloadedBytes, headers, maxConcurrency)
+					isSuccess, statusCode, outputPath = dm.downloadVideoFile(file, &stats.downloadedBytes, headers, maxConcurrency, &stats.retryCount)
 				} else {
-					isSuccess, statusCode, outputPath = dm.downloadFile(file, &downloadedBytes, headers)
+					isSuccess, statusCode, outputPath = dm.downloadFile(file, &stats.downloadedBytes, headers)
 				}
-				downloadedFiles.Add(1)
+				stats.downloadedFiles.Add(1)
 				if isSuccess {
-					successCount.Add(1)
+					stats.successCount.Add(1)
 				}
 				if statusCode == http.StatusUnauthorized { // token 失效
 					tokenInvalid.Store(true)
@@ -149,9 +170,13 @@ func (dm *DownloadManager) StartDownload(downloadButton *widget.Button, download
 			dm.progressBar.SetValue(1.0)
 		})
 
-		successes := int(successCount.Load())
+		successes := int(stats.successCount.Load())
 		failedCount := len(dm.links) - successes
+		retries := stats.retryCount.Load()
 		statsInfo := fmt.Sprintf("- 成功：%d\n- 失败：%d", successes, failedCount)
+		if retries > 0 {
+			statsInfo += fmt.Sprintf("\n- 重试：%d次", retries)
+		}
 		if successes > 0 {
 			statsInfo += fmt.Sprintf("\n(已保存至%v)", dm.downloadsDir)
 		}
@@ -278,25 +303,21 @@ func (dm *DownloadManager) reserveSavePath(
 }
 func sanitizeWindowsFilename(name string) string {
 	// 替换所有 Windows 非法字符
-	// invalidChars := regexp.MustCompile(`[/\\:*?"<>|]`)
-	// blankChars := regexp.MustCompile(`[\r\n\t]+`)
+	// 删除路径遍历尝试
+	name = strings.ReplaceAll(name, "..", "")
+	name = strings.ReplaceAll(name, "~", "")
 
 	name = strings.Map(func(r rune) rune {
 		switch {
-		// Windows 不允许控制字符，如\n, \r, \t等
-		case r < 32:
+		case r < 32: // 忽略控制字符，如\n, \r, \t等
 			return ' '
-
-		// Windows 非法字符
-		case strings.ContainsRune(`<>:"/\|?*`, r):
+		case strings.ContainsRune(`<>:"/\|?*`, r): // Windows 非法字符
 			return '_'
-
 		default:
 			return r
 		}
 	}, name)
-	// Windows 不允许文件名以空格或 . 结尾
-	name = strings.TrimRight(name, " .")
+	name = strings.TrimRight(name, " .") // 避免以空格或 . 结尾
 
 	// Windows 保留名称
 	base := strings.TrimSuffix(name, filepath.Ext(name))
@@ -399,7 +420,13 @@ func (dm *DownloadManager) downloadFile(file LinkData, downloadedBytes *atomic.I
 	return isSuccess, statusCode, outputPath
 }
 
-func (dm *DownloadManager) downloadVideoFile(file LinkData, downloadedBytes *atomic.Int64, headers map[string]string, maxConcurrency int) (bool, int, string) {
+func (dm *DownloadManager) downloadVideoFile(
+	file LinkData,
+	downloadedBytes *atomic.Int64,
+	headers map[string]string,
+	maxConcurrency int,
+	retryStats *atomic.Int64,
+) (bool, int, string) {
 	url := file.BackupURL
 	for _, v := range headers {
 		if v != "" {
@@ -418,7 +445,7 @@ func (dm *DownloadManager) downloadVideoFile(file LinkData, downloadedBytes *ato
 		return false, -1, outputPath
 	}
 
-	statusCode, err := DownloadM3U8(url, outputPath, headers, downloadedBytes, maxConcurrency)
+	statusCode, err := DownloadM3U8(url, outputPath, headers, downloadedBytes, maxConcurrency, retryStats)
 	isSuccess := true
 	if err != nil || statusCode != 200 {
 		slog.Warn(fmt.Sprintf("下载出错 %v", err))

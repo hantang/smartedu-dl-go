@@ -11,6 +11,7 @@ import (
 	"hash/fnv"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -18,6 +19,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/Eyevinn/hls-m3u8/m3u8"
 )
@@ -174,7 +176,10 @@ func GetM3U8Size(m3u8URL string, headers map[string]string) (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("获取 M3U8 头信息失败: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	}()
 
 	// 获取 M3U8 播放列表
 	req, err = http.NewRequest("GET", m3u8URL, nil)
@@ -188,7 +193,10 @@ func GetM3U8Size(m3u8URL string, headers map[string]string) (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("获取 M3U8 播放列表失败: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	}()
 
 	playlist, listType, err := m3u8.DecodeFrom(resp.Body, true)
 	if err != nil {
@@ -227,6 +235,7 @@ func GetM3U8Size(m3u8URL string, headers map[string]string) (int64, error) {
 		}
 
 		sizeStr := segmentResp.Header.Get("Content-Length")
+		io.Copy(io.Discard, segmentResp.Body)
 		segmentResp.Body.Close()
 		if sizeStr != "" {
 			size, err := strconv.ParseInt(sizeStr, 10, 64)
@@ -253,24 +262,40 @@ func extractM3u8Info(mediaPlaylist m3u8.MediaPlaylist) (keyURL, keyID string, iv
 		}
 	}
 
-	slog.Debug(fmt.Sprintf("加密方法(METHOD): %s\n", key.Method))
-	slog.Debug("检测到加密密钥配置")
+	slog.Debug("检测到加密密钥配置", "keyLen", len(key.URI))
 
 	keyURL = key.URI
 	parts := strings.Split(keyURL, "/")
 	keyID = parts[len(parts)-1]
 
 	if key.IV != "" {
-		// 去除0x前缀
+		// 去除0x 0X前缀
 		hexStr := strings.TrimPrefix(key.IV, "0x")
 		hexStr = strings.TrimPrefix(hexStr, "0X")
 		iv, err = hex.DecodeString(hexStr)
 		if err != nil {
 			return "", "", nil, fmt.Errorf("failed to decode IV: %w", err)
 		}
+		slog.Debug("成功提取加密参数", "ivLen", len(iv))
 	}
-	slog.Debug("成功提取加密参数")
 	return keyURL, keyID, iv, nil
+}
+
+// isNetworkError 判断是否为网络相关错误，这类错误适合重试
+func isNetworkError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if netErr, ok := err.(net.Error); ok {
+		return netErr.Timeout()
+	}
+	errStr := err.Error()
+	return strings.Contains(errStr, "connection") ||
+		strings.Contains(errStr, "timeout") ||
+		strings.Contains(errStr, "EOF") ||
+		strings.Contains(errStr, "reset") ||
+		strings.Contains(errStr, "refused") ||
+		strings.Contains(errStr, "temporary failure")
 }
 
 // 下载单个TS文件，增加header信息，更新进度条
@@ -307,6 +332,45 @@ func downloadTSFile(segmentURL, filename string, headers map[string]string, down
 	return err
 }
 
+// downloadTSFileWithRetry 带重试机制的TS文件下载（指数退避）
+func downloadTSFileWithRetry(segmentURL, filename string, headers map[string]string, downloadedBytes *atomic.Int64, retryStats *atomic.Int64) error {
+	const maxRetries = 3
+	var lastErr error
+
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		err := downloadTSFile(segmentURL, filename, headers, downloadedBytes)
+		if err == nil {
+			return nil
+		}
+
+		// 只重试网络错误，不重试HTTP 4xx/5xx
+		if !isNetworkError(err) {
+			return err
+		}
+
+		lastErr = err
+		if attempt < maxRetries-1 {
+			// 指数退避：1s, 2s, 4s
+			backoff := time.Duration(1<<uint(attempt)) * time.Second
+			slog.Debug("download segment failed, retrying",
+				"url", segmentURL[:min(30, len(segmentURL))],
+				"attempt", attempt+1,
+				"backoff", backoff.String())
+			time.Sleep(backoff)
+			retryStats.Add(1)
+		}
+	}
+
+	return fmt.Errorf("download failed after %d retries: %w", maxRetries, lastErr)
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 func getDecryptedData(tsFile string, key []byte, iv []byte) ([]byte, error) {
 	// 读取加密的TS数据
 	// encryptedData, err := io.ReadAll(segmentResp.Body)
@@ -336,9 +400,13 @@ type segmentJob struct {
 
 // 并发下载 ts 文件并按顺序写入输出文件
 func downloadAllTS(tempDir string, urls []string, headers map[string]string, maxConcurrency int, downloadedBytes *atomic.Int64) error {
+	return downloadAllTSWithRetry(tempDir, urls, headers, maxConcurrency, downloadedBytes, nil)
+}
+
+func downloadAllTSWithRetry(tempDir string, urls []string, headers map[string]string, maxConcurrency int, downloadedBytes *atomic.Int64, retryStats *atomic.Int64) error {
 	var wg sync.WaitGroup
 	downloadChan := make(chan segmentJob, len(urls))
-	errChan := make(chan error, 1)
+	errChan := make(chan error, len(urls))
 	if maxConcurrency < 1 {
 		maxConcurrency = 1
 	}
@@ -346,12 +414,16 @@ func downloadAllTS(tempDir string, urls []string, headers map[string]string, max
 		maxConcurrency = len(urls)
 	}
 
+	if retryStats == nil {
+		retryStats = &atomic.Int64{}
+	}
+
 	// 控制并发数
 	for i := 0; i < maxConcurrency; i++ {
 		go func() {
 			for job := range downloadChan {
 				filename := filepath.Join(tempDir, fmt.Sprintf("%05d.ts", job.index))
-				err := downloadTSFile(job.url, filename, headers, downloadedBytes)
+				err := downloadTSFileWithRetry(job.url, filename, headers, downloadedBytes, retryStats)
 				if err != nil {
 					select {
 					case errChan <- err:
@@ -385,6 +457,21 @@ func downloadAllTS(tempDir string, urls []string, headers map[string]string, max
 
 // 按顺序合并 ts 文件
 func mergeTSFiles(tempDir, outFile string, urls []string, key []byte, iv []byte) error {
+	// 合并前先检查文件
+	for i := 0; i < len(urls); i++ {
+		tsFile := filepath.Join(tempDir, fmt.Sprintf("%05d.ts", i))
+		info, err := os.Stat(tsFile)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return fmt.Errorf("segment %d not found: %s", i, tsFile)
+			}
+			return fmt.Errorf("segment %d stat error: %w", i, err)
+		}
+		if info.Size() == 0 {
+			return fmt.Errorf("segment %d is empty: %s", i, tsFile)
+		}
+	}
+
 	outFileHandle, err := os.Create(outFile)
 	if err != nil {
 		return err
@@ -424,7 +511,10 @@ func getTempDirFromHash(input string, prefix string) (string, error) {
 }
 
 // downloads a M3U8 video and save it to MP4 file
-func DownloadM3U8(m3u8URL, savePath string, headers map[string]string, downloadedBytes *atomic.Int64, maxConcurrency int) (int, error) {
+func DownloadM3U8(m3u8URL, savePath string, headers map[string]string, downloadedBytes *atomic.Int64, maxConcurrency int, retryStats *atomic.Int64) (int, error) {
+	if retryStats == nil {
+		retryStats = &atomic.Int64{}
+	}
 	statusCode := -1
 	req, err := http.NewRequest("GET", m3u8URL, nil)
 	if err != nil {
@@ -491,9 +581,14 @@ func DownloadM3U8(m3u8URL, savePath string, headers map[string]string, downloade
 	if err != nil {
 		return statusCode, err
 	}
+	defer func() {
+		if err := os.RemoveAll(tempDir); err != nil {
+			slog.Warn("failed to cleanup temp dir", "path", tempDir, "err", err)
+		}
+	}()
 	slog.Debug(fmt.Sprintf("tempDir: %s\nmaxConcurrency: %d\nTS count: %d", tempDir, maxConcurrency, len(segmentURLList)))
 
-	if err := downloadAllTS(tempDir, segmentURLList, headers, maxConcurrency, downloadedBytes); err != nil {
+	if err := downloadAllTSWithRetry(tempDir, segmentURLList, headers, maxConcurrency, downloadedBytes, retryStats); err != nil {
 		return statusCode, err
 	}
 	if err := mergeTSFiles(tempDir, savePath, segmentURLList, key, iv); err != nil {
