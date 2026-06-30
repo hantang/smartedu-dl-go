@@ -14,13 +14,15 @@ import (
 
 func CreateInputTab(w fyne.Window, linkItemMaps map[string][]dl.LinkItem, name string, isLocal bool, arrayLen int) *fyne.Container {
 	// Multi-line text input for URL
+	maxLines := 10 // 限制行数（避免批量下载数量太大）
 	urlInput := widget.NewMultiLineEntry()
 	urlInput.SetPlaceHolder("输入 smartedu.cn 资源链接")
 
 	// Update the input to linkItemMaps[name]
 	urlInput.OnChanged = func(text string) {
-		lines := strings.Split(text, "\n")   // TODO 限制行数（批量下载数量）
+		lines := strings.Split(text, "\n")
 		linkItemMaps[name] = []dl.LinkItem{} // 清空现有数据
+		count := 0
 		for _, line := range lines {
 			line = strings.TrimSpace(line)
 			if line == "" {
@@ -31,6 +33,12 @@ func CreateInputTab(w fyne.Window, linkItemMaps map[string][]dl.LinkItem, name s
 				Type: dl.InputInfo.Type,
 			}
 			linkItemMaps[name] = append(linkItemMaps[name], linkItem)
+
+			count += 1
+			if count >= maxLines {
+				slog.Debug(fmt.Sprintf("Truncate top %d lines", maxLines))
+				break
+			}
 		}
 		slog.Debug(fmt.Sprintf("text = %s, lines = %d, options = %d", text, len(lines), len(linkItemMaps[name])))
 	}

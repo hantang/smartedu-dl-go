@@ -18,6 +18,7 @@ var SERVER_LIST = []string{
 
 // or: bdcs-file-1
 var PAPER_SERVER = "https://bdcs-file-2.ykt.cbern.com.cn"
+var SITE_HOST = "basic.smartedu.cn"
 
 // 下载数据格式（后缀）
 var FORMAT_LIST = []FormatData{
@@ -201,7 +202,7 @@ var RESOURCES_MAP = map[string]ResourceData{
 	},
 
 	// 更多（初步支持，备用解析生效）
-	"/": {
+	"/detail": {
 		name:     "其他",
 		params:   []string{"contentId"},
 		examples: []string{},
@@ -253,7 +254,7 @@ type LinkData struct {
 
 type FormatData struct {
 	Name   string
-	Suffix string // TODO
+	Suffix string // TODO 支持多个后缀类型
 	Status bool
 	Check  bool
 }

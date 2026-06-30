@@ -27,19 +27,20 @@ func ValidURL(link string) bool {
 	}
 
 	parsedURL, err := url.Parse(link)
-	if err != nil {
+	if err != nil || parsedURL.Host != SITE_HOST {
 		return false
 	}
-
+	slog.Debug(parsedURL.Host)
 	path := parsedURL.Path
 	// 允许直接输入下载资源链接
 	if strings.Contains(path, RESOURCES_PATH) {
 		return true
 	}
-	// TODO 放宽限制
-	// if _, ok := RESOURCES_MAP[path]; !ok {
-	// 	return false
-	// }
+
+	// 网站页面 放宽限制
+	if _, ok := RESOURCES_MAP[path]; !(ok || isDetailResourceURL(link)) {
+		return false
+	}
 	return true
 }
 
@@ -104,8 +105,12 @@ func parseResourceURL(path string, queryParams url.Values, audio bool, random bo
 	return configURLList, nil
 }
 
-func parseExtraResourceURL(queryParams url.Values, random bool) ([]string, error) {
-	const path = "/"
+func isDetailResourceURL(path string) bool {
+	return strings.Contains(path, "/detail") && strings.Contains(path, "contentType=")
+}
+
+func parseDetailResourceURL(queryParams url.Values, random bool) ([]string, error) {
+	const path = "/detail"
 	var configURLList []string
 	configInfo, ok := RESOURCES_MAP[path]
 	if !ok {
@@ -153,7 +158,7 @@ func parseURL(link string, audio bool, random bool, useBackup bool) ([]string, e
 	if ok {
 		return parseResourceURL(path, queryParams, audio, random, useBackup)
 	} else if useBackup {
-		return parseExtraResourceURL(queryParams, random)
+		return parseDetailResourceURL(queryParams, random)
 	}
 
 	return configURLList, nil
