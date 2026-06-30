@@ -329,7 +329,7 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 		}
 	}
 
-	// 如果不是ResourceItemExt，尝试解析为ResourceItem数组（教材类）
+	// 如果不是ResourceItemExt，尝试解析为ResourceItem数组（教材类、thematic_course）
 	if len(items) == 0 {
 		slog.Debug("Parse into ResourceItem list")
 		if err := json.Unmarshal(data, &items); err != nil {
@@ -350,7 +350,7 @@ func parseResourceItems(data []byte, tiFormatList []string, random bool) ([]Link
 
 	// 处理每个ResourceItem
 	for i, item := range items {
-		slog.Debug(fmt.Sprintf("item = %v", item))
+		// slog.Debug(fmt.Sprintf("item = %v", item))
 		// 补充额外信息，尽量避免标题重复
 		title := item.CustomProperties.OriginalTitle
 		if title == "" {
@@ -696,7 +696,6 @@ func ExtractResources(links []string, formatList []string, random bool, useBacku
 		slog.Debug(fmt.Sprintf("formatList = %v", formatList))
 		switch {
 		case strings.Contains(pair.query, "/syncClassroom/examinationpapers"):
-			slog.Debug("process as parsePaperResourceItems")
 			if !slices.Contains(formatList, "pdf") {
 				continue
 			}
@@ -704,7 +703,6 @@ func ExtractResources(links []string, formatList []string, random bool, useBacku
 			resources, err = parsePaperResourceItems(data, random)
 
 		case isCourseDetailResourceURL(pair.query):
-			slog.Debug("process as isCourseDetailResourceURL")
 			if !slices.Contains(formatList, "m3u8") {
 				continue
 			}
