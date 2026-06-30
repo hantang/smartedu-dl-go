@@ -47,6 +47,10 @@ Tab页面：
   - 新增中小学语文示范诵读库标签页面
 - `v0.2.15` 没有功能更新，仅更新依赖模块。
 - `v0.2.16` 没有功能更新，部分代码优化。
+- `v0.2.17`
+  - 修复文件路径异常字符保存失败 [#16][issue-16]
+  - 支持更多页面（部分页面可能需要勾选【备用解析】） [#14][issue-14]
+  - 修改m3u8依赖
 
 [bytedance-fonts]: https://github.com/bytedance/fonts
 
@@ -57,6 +61,8 @@ Tab页面：
 [issue-7]: https://github.com/hantang/smartedu-dl-go/issues/7
 [issue-8]: https://github.com/hantang/smartedu-dl-go/issues/8
 [issue-9]: https://github.com/hantang/smartedu-dl-go/issues/9
+[issue-14]: https://github.com/hantang/smartedu-dl-go/issues/14
+[issue-16]: https://github.com/hantang/smartedu-dl-go/issues/16
 
 ## v0.1
 

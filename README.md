@@ -59,17 +59,24 @@
 或者使用如下 javascript 代码获取`Access Token`（等同 X-ND-AUTH 中 `MAC id` 的值）
 
 ```javascript
-// 来自 https://github.com/happycola233/tchMaterial-parser?tab=readme-ov-file#2-设置-access-token
+// 修改自 https://github.com/happycola233/tchMaterial-parser?tab=readme-ov-file#2-设置-access-token
 
-(function () {
-  const authKey = Object.keys(localStorage).find((key) => key.startsWith("ND_UC_AUTH"));
-  if (!authKey) {
-    console.error("未找到 Access Token，请确保已登录！");
-    return;
+(() => {
+  const authKey = Object.keys(localStorage).find(k => k.startsWith("ND_UC_AUTH"));
+  if (!authKey) return console.error("未找到 Token；请登录后重试");
+
+  try {
+    const token = JSON.parse(JSON.parse(localStorage.getItem(authKey)).value).access_token;
+    console.log("%cAccess Token: ", "color: green; font-weight: bold", accessToken);
+  } catch (e) {
+    console.error("Token 解析失败", e);
   }
-  const tokenData = JSON.parse(localStorage.getItem(authKey));
-  const accessToken = JSON.parse(tokenData.value).access_token;
-  console.log("%cAccess Token: ", "color: green; font-weight: bold", accessToken);
+})();
+
+// 简洁版
+(() => {
+  const k = Object.keys(localStorage).find(k => k.startsWith("ND_UC_AUTH"));
+  console.log(k && JSON.parse(JSON.parse(localStorage[k]).value).access_token);
 })();
 ```
 
@@ -123,12 +130,13 @@ go run main.go --debug --local
 
 ## 🌐 相关项目
 
-- 类似项目
-  - [happycola233/tchMaterial-parser](https://github.com/happycola233/tchMaterial-parser)
-  - [52beijixing/smartedu-download](https://github.com/52beijixing/smartedu-download)
+- 类似项目（如果当前APP下载资源失败，可尝试以下工具）
+  - [happycola233/tchMaterial-parser](https://github.com/happycola233/tchMaterial-parser) 【开源】
+  - [52beijixing/smartedu-download](https://github.com/52beijixing/smartedu-download) 【开源】
   - 智慧教育平台电子教材下载器
     - <https://www.52pojie.cn/thread-2036716-1-1.html>
     - <https://www.52pojie.cn/thread-1891126-1-1.html>
+  - [vultur/smart-app](https://github.com/vultur/smart-app)
   - [cjhdevact/FlyEduDownloader](https://github.com/cjhdevact/FlyEduDownloader)
 
 - 图标：修改自<https://www.smartedu.cn/>
